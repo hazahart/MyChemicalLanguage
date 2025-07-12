@@ -54,7 +54,7 @@ def analizar_codigo(editor, tabla, status_label, symbols_text):
 
     except SyntaxError as ex:
         msg = str(ex)
-        status_label.config(text=msg, fg="red")
+        status_label.config(text=msg, fg="#FF5252")
         m = re.search(r'\[pos (\d+)\]', msg)
         if m:
             idx = int(m.group(1))
@@ -65,7 +65,7 @@ def analizar_codigo(editor, tabla, status_label, symbols_text):
                 editor.tag_config("ERROR", background="yellow")
                 editor.tag_add("ERROR", s, e)
     except Exception as ex:
-        status_label.config(text=f"Error: {ex}", fg="red")
+        status_label.config(text=f"Error: {ex}", fg="#FF5252")
 
 def actualizar_tabla_simbolos(symbols_text, tabla_simbolos):
     symbols_info = "📋 TABLA DE SÍMBOLOS\n\n"
