@@ -101,7 +101,11 @@ def create_interface():
                  "COMENTARIO": ("#5C6370", "italic"),
                  "DESCONOCIDO": ("#FF5555", "bold"),
                  "bg": "#282C34",
-                 "fg": "#ABB2BF"
+                 "fg": "#ABB2BF",
+                 "FUSIONAR": ("#61AFEF", "bold"),
+                 "SEPARAR": ("#61AFEF", "bold"),
+                 "CATALIZAR": ("#61AFEF", "bold"),
+                 "DILUIR": ("#61AFEF", "bold"),
                  },
         "light": {  # Xcode
                   "PALABRA_RESERVADA": ("#0000FF", "bold"),
@@ -116,7 +120,11 @@ def create_interface():
                   "COMENTARIO": ("#808080", "italic"),
                   "DESCONOCIDO": ("#FF0000", "bold"),
                   "bg": "#FFFFFF",
-                  "fg": "#000000"
+                  "fg": "#000000",
+                  "FUSIONAR": ("#000000", "bold"),
+                  "SEPARAR": ("#000000", "bold"),
+                  "CATALIZAR": ("#000000", "bold"),
+                  "DILUIR": ("#000000", "bold"),
                   }
     }
 

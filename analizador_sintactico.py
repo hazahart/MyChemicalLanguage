@@ -295,6 +295,11 @@ class Parser:
         return node
 
     def term(self):
+        if self.look.tipo == TipoToken.PALABRA_RESERVADA and self.look.valor in OPERADORES_VERBALES:
+            v = OPERADORES_VERBALES[self.look.valor]
+            self.eat(TipoToken.PALABRA_RESERVADA)
+            return ("VAR", v)
+        
         node = self.factor()
         # Manejar múltiples operadores * y /
         while self.look.tipo == TipoToken.OPERADOR and self.look.valor in ("*", "/"):

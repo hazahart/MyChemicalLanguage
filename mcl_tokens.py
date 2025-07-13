@@ -12,6 +12,17 @@ CODIGOS_TOKEN_RESERVADAS = {
     "mostrar": 1090, "mezclar": 1100, "reaccionar": 1110, "balancear": 1120,
     "si": 1130, "sino": 1140, "repetir": 1150, "hacer": 1160,
     "mientras": 1170, "detener": 1180, "y": 1190, "o": 1200,
+    "fusionar": 2030,   # mismo código que "+"
+    "separar": 2050,    # mismo que "-"
+    "catalizar": 2040,  # mismo que "*"
+    "diluir": 2060,     # mismo que "/"
+}
+
+OPERADORES_VERBALES = {
+    "fusionar": "+",
+    "separar": "-",
+    "catalizar": "*",
+    "diluir": "/"
 }
 
 CODIGOS_TOKEN_UNIDADES = {
@@ -19,7 +30,12 @@ CODIGOS_TOKEN_UNIDADES = {
 }
 
 CODIGOS_TOKEN_OPERADORES = {
-    "=": 2010, "->": 2020, "+": 2030, "*": 2040, "-": 2050, "/": 2060, "@": 2070,
+    "=": 2010, "->": 2020,
+    "+": 2030,   # fusionar
+    "-": 2050,   # separar
+    "*": 2040,   # catalizar
+    "/": 2060,   # diluir
+    "@": 2070,
     "<": 2080, ">": 2090, "<=": 2100, ">=": 2110, "!=": 2120, "==": 2130,
 }
 

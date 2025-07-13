@@ -59,8 +59,14 @@ class AFD_Lexico:
                     if palabra and fin != len(lex):
                         palabra = None
                 if palabra:
-                    tipo = TOKEN_CATEGORIES[lex]
-                    self.emitir(tipo, lex, inicio, j)
+                    # CONVERTIR PALABRAS A OPERADORES
+                    if palabra in OPERADORES_VERBALES:
+                        tipo_token = TipoToken.OPERADOR
+                        valor_token = OPERADORES_VERBALES[palabra]
+                        self.emitir(tipo_token, valor_token, inicio, j)
+                    else:
+                        tipo = TOKEN_CATEGORIES[lex]
+                        self.emitir(tipo, lex, inicio, j)
                 else:
                     tp = TipoToken.IDENTIFICADOR if not err else TipoToken.DESCONOCIDO
                     self.emitir(tp, lex, inicio, j)
