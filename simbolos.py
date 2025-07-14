@@ -7,6 +7,10 @@ class Simbolo:
 class TablaSimbolos:
     def __init__(self):
         self.tablas = [{}]
+        # Agregar constantes predefinidas
+        self.insertar("PLANCK", Simbolo("PLANCK", "numero", valor=6.62607015e-34))
+        self.insertar("AVOGADRO", Simbolo("AVOGADRO", "numero", valor=6.02214076e23))
+        self.insertar("PI", Simbolo("PI", "numero", valor=3.1415926535))
 
     def entrar_bloque(self):
         self.tablas.append({})

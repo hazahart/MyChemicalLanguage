@@ -272,15 +272,12 @@ class Parser:
 
     def expr(self):
         node = self.term()
-        # Manejar múltiples operadores + y -
         while self.look.tipo == TipoToken.OPERADOR and self.look.valor in ("+", "-"):
             op = self.look.valor
             self.eat(TipoToken.OPERADOR, op)
             right = self.term()
             left_type, left_unit = self._infer_type(node)
             right_type, right_unit = self._infer_type(right)
-
-            # Validación de tipos
             if op in ["+", "-"]:
                 if left_type == right_type == "sustancia":
                     if left_unit != right_unit:
@@ -288,7 +285,7 @@ class Parser:
                     node = ("BIN_OP", op, node, right)
                 elif left_type == "cadena" and right_type == "cadena" and op == "+":
                     node = ("BIN_OP", op, node, right)
-                elif left_type == "numero" and right_type == "numero":
+                elif left_type == right_type == "numero":
                     node = ("BIN_OP", op, node, right)
                 else:
                     self.error(f"Operador '{op}' no válido entre tipos {left_type} y {right_type}")
@@ -301,15 +298,12 @@ class Parser:
             return ("VAR", v)
         
         node = self.factor()
-        # Manejar múltiples operadores * y /
         while self.look.tipo == TipoToken.OPERADOR and self.look.valor in ("*", "/"):
             op = self.look.valor
             self.eat(TipoToken.OPERADOR, op)
             right = self.factor()
             left_type, left_unit = self._infer_type(node)
             right_type, right_unit = self._infer_type(right)
-
-            # Validación de tipos
             if (left_type == "sustancia" and right_type == "numero") or \
             (left_type == "numero" and right_type == "numero"):
                 node = ("BIN_OP", op, node, right)
@@ -318,8 +312,12 @@ class Parser:
         return node
 
     def factor(self):
-        if self.look.tipo == TipoToken.IDENTIFICADOR:
-            v = self.look.valor; self.eat(TipoToken.IDENTIFICADOR)
+        if self.look.tipo == TipoToken.IDENTIFICADOR or self.look.tipo == TipoToken.PALABRA_RESERVADA:
+            v = self.look.valor
+            if self.look.tipo == TipoToken.PALABRA_RESERVADA and v in ["PLANCK", "AVOGADRO", "PI"]:
+                self.eat(TipoToken.PALABRA_RESERVADA)
+            else:
+                self.eat(TipoToken.IDENTIFICADOR)
             simbolo = self.tabla_simbolos.buscar(v)
             if simbolo is None:
                 self.error(f"Variable '{v}' no declarada")

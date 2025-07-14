@@ -16,6 +16,9 @@ CODIGOS_TOKEN_RESERVADAS = {
     "separar": 2050,    # mismo que "-"
     "catalizar": 2040,  # mismo que "*"
     "diluir": 2060,     # mismo que "/"
+    "PLANCK": 1025,     # Nueva constante
+    "AVOGADRO": 1026,   # Nueva constante
+    "PI": 1027          # Nueva constante
 }
 
 OPERADORES_VERBALES = {
