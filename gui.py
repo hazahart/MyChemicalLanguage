@@ -17,13 +17,6 @@ def is_dark_mode():
             return value == 0
         except Exception:
             return False
-    elif system == "Darwin":  # macOS
-        try:
-            script = 'tell application "System Events" to tell appearance preferences to get dark mode'
-            output = subprocess.check_output(['osascript', '-e', script]).decode().strip()
-            return output == 'true'
-        except:
-            return False
     elif system == "Linux":
         # Verificar variables de entorno comunes para temas oscuros
         dark_env = os.environ.get("GTK_THEME", "").lower() + os.environ.get("COLORFGBG", "").lower()
