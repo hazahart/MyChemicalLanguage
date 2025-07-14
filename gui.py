@@ -167,7 +167,7 @@ def create_interface():
     THEME_COLORS['editor_text'] = theme["fg"]
 
     root = tk.Tk()
-    root.title("MCL Chemical Language Analyzer")
+    root.title("Analizador de My Chemical Language (MCL)")
     root.configure(bg=THEME_COLORS['bg_main'])
 
     title_font = tkFont.Font(family='Segoe UI', size=16, weight='bold')
@@ -181,7 +181,7 @@ def create_interface():
     header_frame.pack(fill=tk.X, pady=(0, 20))
 
     title_label = tk.Label(header_frame,
-                           text="🧪 MCL Chemical Language Analyzer",
+                           text="🧪 Analizador de My Chemical Language (MCL)",
                            font=title_font,
                            bg=THEME_COLORS['primary'],
                            fg=THEME_COLORS['text_primary'])
