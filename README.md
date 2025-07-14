@@ -5,6 +5,8 @@
 ## Características Principales
 
 - **Sintaxis Química Especializada**: Declara sustancias, cantidades, unidades y reacciones químicas
+- **Operadores Verbales**: `fusionar`(+), `separar`(-), `catalizar`(*), `diluir`(/)
+- **Constantes Científicas**: `PLANCK`, `AVOGADRO`, `PI` integradas
 - **Análisis Multinivel**:
   - **Léxico**: Reconocimiento de tokens químicos (mol, atm, sustancias)
   - **Sintáctico**: Construcción de Abstract Syntax Tree (AST)
@@ -18,6 +20,7 @@
   - Visualización de tokens
   - Tabla de símbolos interactiva
   - Visualización de AST y código intermedio
+  - Detección automática de modo oscuro/claro
 
 ## Componentes del Proyecto
 
@@ -27,7 +30,7 @@
 | `analizador_sintactico.py` | Parser para construcción de AST |
 | `analizador_semantico.py` | Verificador de tipos y consistencia química |
 | `codigo_intermedio.py` | Genera representaciones intermedias de código |
-| `gui.py` | Interfaz gráfica con Tkinter |
+| `gui.py` | Interfaz gráfica con Tkinter y modo oscuro |
 | `main.py` | Punto de entrada principal |
 | `mcl_tokens.py` | Definición de tokens y enumeraciones |
 | `simbolos.py` | Implementación de tabla de símbolos |
@@ -44,13 +47,15 @@ sustancia reactivoO2 cantidad = 0;
 
 sustancia total cantidad = 0;
 
+# Uso de operadores verbales y constantes
+numero moles_agua = (PLANCK * AVOGADRO) catalizar PI;
+
 reaccionar formarAgua[2H2, O2 -> 2H2O] {
-    mezclar(H2 * 2) -> reactivoH2;
-    mezclar(O2 * 1) -> reactivoO2;
-    mezclar(reactivoH2 + reactivoO2) -> total;
-    mostrar("Masa total de reactivos para formar agua: ", total, " gramo");
+    mezclar(H2 fusionar H2) -> reactivoH2;  # Equivalente a H2 + H2
+    mezclar(O2) -> reactivoO2;
+    mezclar(reactivoH2 diluir PI) -> total; # Equivalente a reactivoH2 / PI
+    mostrar("Moles de agua calculados: ", moles_agua);
 }
 
 mostrar("¡Hola Mundo Químico! Iniciando reacción...");
 formarAgua[2H2, O2];
-```
