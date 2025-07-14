@@ -24,16 +24,16 @@
 
 ## Componentes del Proyecto
 
-| Archivo | Descripción |
-|---------|-------------|
-| `analizador_lexico.py` | Implementa AFD y Trie para tokenización |
-| `analizador_sintactico.py` | Parser para construcción de AST |
-| `analizador_semantico.py` | Verificador de tipos y consistencia química |
-| `codigo_intermedio.py` | Genera representaciones intermedias de código |
-| `gui.py` | Interfaz gráfica con Tkinter y modo oscuro |
-| `main.py` | Punto de entrada principal |
-| `mcl_tokens.py` | Definición de tokens y enumeraciones |
-| `simbolos.py` | Implementación de tabla de símbolos |
+| Archivo                    | Descripción                                   |
+|----------------------------|-----------------------------------------------|
+| `analizador_lexico.py`     | Implementa AFD y Trie para tokenización       |
+| `analizador_sintactico.py` | Parser para construcción de AST               |
+| `analizador_semantico.py`  | Verificador de tipos y consistencia química   |
+| `codigo_intermedio.py`     | Genera representaciones intermedias de código |
+| `gui.py`                   | Interfaz gráfica con Tkinter y modo oscuro    |
+| `main.py`                  | Punto de entrada principal                    |
+| `mcl_tokens.py`            | Definición de tokens y enumeraciones          |
+| `simbolos.py`              | Implementación de tabla de símbolos           |
 
 ## Ejemplo de Código MCL
 
