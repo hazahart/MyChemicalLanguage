@@ -3,9 +3,12 @@ from tkinter import ttk, scrolledtext
 import tkinter.font as tkFont
 from dataclasses import dataclass
 import platform
+import subprocess
+import os
 
 def is_dark_mode():
-    if platform.system() == "Windows":
+    system = platform.system()
+    if system == "Windows":
         try:
             import winreg
             key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
@@ -14,25 +17,57 @@ def is_dark_mode():
             return value == 0
         except Exception:
             return False
+    elif system == "Darwin":  # macOS
+        try:
+            script = 'tell application "System Events" to tell appearance preferences to get dark mode'
+            output = subprocess.check_output(['osascript', '-e', script]).decode().strip()
+            return output == 'true'
+        except:
+            return False
+    elif system == "Linux":
+        # Verificar variables de entorno comunes para temas oscuros
+        dark_env = os.environ.get("GTK_THEME", "").lower() + os.environ.get("COLORFGBG", "").lower()
+        return 'dark' in dark_env or '0' in dark_env
     return False
 
-# Paleta Material Design (oscura para GUI)
-THEME_COLORS = {
-    'primary': '#1F2937',
-    'secondary': '#374151',
-    'accent': '#3B82F6',
-    'success': '#10B981',
-    'warning': '#F59E0B',
-    'danger': '#EF4444',
-    'light': '#F9FAFB',
-    'dark': '#111827',
-    'bg_main': '#0F172A',
-    'bg_secondary': '#1E293B',
-    'text_primary': '#FFFFFF',
-    'text_secondary': '#9CA3AF',
-    'editor_bg': "#FFFFFF",
-    'editor_text': '#111827'
-}
+# Paleta Material Design con ajustes para modo claro/oscuro
+def get_theme_colors():
+    dark_mode = is_dark_mode()
+
+    if dark_mode:
+        return {
+            'primary': '#1F2937',
+            'secondary': '#374151',
+            'accent': '#3B82F6',
+            'success': '#10B981',
+            'warning': '#F59E0B',
+            'danger': '#EF4444',
+            'light': '#F9FAFB',
+            'dark': '#111827',
+            'bg_main': '#0F172A',
+            'bg_secondary': '#1E293B',
+            'text_primary': '#FFFFFF',
+            'text_secondary': '#9CA3AF',
+            'editor_bg': "#282C34",
+            'editor_text': '#ABB2BF'
+        }
+    else:
+        return {
+            'primary': '#E5E7EB',
+            'secondary': '#D1D5DB',
+            'accent': '#2563EB',
+            'success': '#059669',
+            'warning': '#D97706',
+            'danger': '#DC2626',
+            'light': '#F3F4F6',
+            'dark': '#1F2937',
+            'bg_main': '#F9FAFB',
+            'bg_secondary': '#FFFFFF',
+            'text_primary': '#111827',
+            'text_secondary': '#4B5563',
+            'editor_bg': "#FFFFFF",
+            'editor_text': '#1F2937'
+        }
 
 @dataclass
 class UIComponents:
@@ -46,46 +81,52 @@ class UIComponents:
 
 class ModernFrame(tk.Frame):
     def __init__(self, parent, bg_color=None, **kwargs):
-        super().__init__(parent, bg=bg_color or THEME_COLORS['bg_secondary'], **kwargs)
+        colors = get_theme_colors()
+        super().__init__(parent, bg=bg_color or colors['bg_secondary'], **kwargs)
         self.configure(relief='flat', bd=0)
 
 class ModernButton(tk.Button):
     def __init__(self, parent, **kwargs):
+        colors = get_theme_colors()
         super().__init__(parent, **kwargs)
         self.configure(
-            bg=THEME_COLORS['accent'],
-            fg=THEME_COLORS['text_primary'],
+            bg=colors['accent'],
+            fg=colors['text_primary'],
             font=('Segoe UI', 10, 'bold'),
             relief='flat',
             bd=0,
             padx=20,
             pady=8,
             cursor='hand2',
-            activebackground='#2563EB',
+            activebackground='#2563EB' if colors['accent'] == '#3B82F6' else '#1D4ED8',
             highlightthickness=2,
-            highlightbackground='#1E40AF',
-            highlightcolor='#1E40AF'
+            highlightbackground=colors['accent'],
+            highlightcolor=colors['accent']
         )
         self.bind('<Enter>', self._on_enter)
         self.bind('<Leave>', self._on_leave)
 
     def _on_enter(self, e):
-        self.configure(bg='#2563EB')
+        colors = get_theme_colors()
+        self.configure(bg='#2563EB' if colors['accent'] == '#3B82F6' else '#1D4ED8')
 
     def _on_leave(self, e):
-        self.configure(bg=THEME_COLORS['accent'])
+        colors = get_theme_colors()
+        self.configure(bg=colors['accent'])
 
 class ModernLabel(tk.Label):
     def __init__(self, parent, **kwargs):
+        colors = get_theme_colors()
         super().__init__(parent, **kwargs)
         self.configure(
-            bg=kwargs.get('bg', THEME_COLORS['bg_secondary']),
-            fg=THEME_COLORS['text_primary'],
+            bg=kwargs.get('bg', colors['bg_secondary']),
+            fg=colors['text_primary'],
             font=('Segoe UI', 10)
         )
 
 def create_interface():
     dark_mode = is_dark_mode()
+    THEME_COLORS = get_theme_colors()
 
     syntax_colors = {
         "dark": {  # One Dark
@@ -128,7 +169,7 @@ def create_interface():
                   }
     }
 
-    theme = syntax_colors["dark" if dark_mode else "light"]
+    theme = syntax_colors["dark"] if dark_mode else syntax_colors["light"]
     THEME_COLORS['editor_bg'] = theme["bg"]
     THEME_COLORS['editor_text'] = theme["fg"]
 
@@ -286,3 +327,8 @@ def create_interface():
         btn_code=btn_code,
         symbols_text=symbols_text
     )
+
+# Ejecutar la interfaz
+if __name__ == "__main__":
+    ui = create_interface()
+    ui.root.mainloop()
