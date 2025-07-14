@@ -70,7 +70,7 @@ class UIComponents:
     status_label: tk.Label
     btn_ast: tk.Button
     btn_code: tk.Button
-    symbols_text: scrolledtext.ScrolledText
+    symbols_tree: ttk.Treeview  # Cambiamos symbols_text por symbols_tree
 
 class ModernFrame(tk.Frame):
     def __init__(self, parent, bg_color=None, **kwargs):
@@ -228,6 +228,7 @@ def create_interface():
                                        pady=15)
     editor.pack(fill=tk.BOTH, expand=True)
 
+    # Panel derecho con notebook
     right_panel = ModernFrame(content_frame, bg_color=THEME_COLORS['bg_secondary'])
     right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
 
@@ -278,16 +279,18 @@ def create_interface():
     symbols_frame = ModernFrame(notebook, bg_color=THEME_COLORS['bg_secondary'])
     notebook.add(symbols_frame, text="📊 Símbolos")
 
-    symbols_text = scrolledtext.ScrolledText(symbols_frame,
-                                             font=('Segoe UI', 10),
-                                             bg=THEME_COLORS['light'],
-                                             fg=THEME_COLORS['dark'],
-                                             relief='flat',
-                                             bd=0,
-                                             padx=15,
-                                             pady=15)
-    symbols_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-    symbols_text.config(state=tk.DISABLED)
+    symbols_tree = ttk.Treeview(symbols_frame, columns=("Nombre", "Tipo", "Info"), show="headings", height=15)
+    symbols_tree.heading("Nombre", text="Nombre")
+    symbols_tree.heading("Tipo", text="Tipo")
+    symbols_tree.heading("Info", text="Información adicional")
+    symbols_tree.column("Nombre", width=150, anchor="w")
+    symbols_tree.column("Tipo", width=100, anchor="w")
+    symbols_tree.column("Info", width=250, anchor="w")
+
+    scrollbar = ttk.Scrollbar(symbols_frame, orient=tk.VERTICAL, command=symbols_tree.yview)
+    symbols_tree.configure(yscrollcommand=scrollbar.set)
+    symbols_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
     status_frame = ModernFrame(main_frame, bg_color=THEME_COLORS['secondary'])
     status_frame.pack(fill=tk.X, pady=(20, 0))
@@ -318,7 +321,7 @@ def create_interface():
         status_label=status_label,
         btn_ast=btn_ast,
         btn_code=btn_code,
-        symbols_text=symbols_text
+        symbols_tree=symbols_tree
     )
 
 # Ejecutar la interfaz

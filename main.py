@@ -14,7 +14,7 @@ ultimo_ast = None
 ultimo_tabla_simbolos = None
 ultimo_codigo_intermedio = None
 
-def analizar_codigo(editor, tabla, status_label, symbols_text):
+def analizar_codigo(editor, tabla, status_label, symbols_tree):
     global ultimo_ast, ultimo_tabla_simbolos, ultimo_codigo_intermedio
     txt = editor.get("1.0", tk.END)
     tokens = AFD_Lexico(txt).run()
@@ -50,7 +50,7 @@ def analizar_codigo(editor, tabla, status_label, symbols_text):
             status_label.config(text="✓ Análisis completado correctamente", fg="#4CAF50")
 
         # Actualizar tabla de símbolos
-        actualizar_tabla_simbolos(symbols_text, tabla_simbolos)
+        actualizar_tabla_simbolos(symbols_tree, tabla_simbolos)
 
     except SyntaxError as ex:
         msg = str(ex)
@@ -67,25 +67,15 @@ def analizar_codigo(editor, tabla, status_label, symbols_text):
     except Exception as ex:
         status_label.config(text=f"Error: {ex}", fg="#FF5252")
 
-def actualizar_tabla_simbolos(symbols_text, tabla_simbolos):
-    symbols_info = "📋 TABLA DE SÍMBOLOS\n\n"
+def actualizar_tabla_simbolos(treeview, tabla_simbolos):
+    treeview.delete(*treeview.get_children())  # Limpiar la tabla actual
     for i, tabla in enumerate(tabla_simbolos.tablas):
-        symbols_info += f"🔹 Ámbito {i + 1}:\n"
-        if not tabla:
-            symbols_info += "   (vacío)\n"
-        else:
-            for nombre, simbolo in tabla.items():
-                symbols_info += f"   • {nombre}: {simbolo.tipo}"
-                if hasattr(simbolo, 'info') and simbolo.info:
-                    info_str = ", ".join([f"{k}={v}" for k, v in simbolo.info.items()])
-                    symbols_info += f" ({info_str})"
-                symbols_info += "\n"
-        symbols_info += "\n"
-
-    symbols_text.config(state=tk.NORMAL)
-    symbols_text.delete(1.0, tk.END)
-    symbols_text.insert(tk.END, symbols_info)
-    symbols_text.config(state=tk.DISABLED)
+        # Insertar encabezado de ámbito
+        treeview.insert("", "end", values=(f"Ámbito {i + 1}", "", ""), tags=("header",))
+        for nombre, simbolo in tabla.items():
+            # Formatear información adicional
+            info_str = ", ".join([f"{k}={v}" for k, v in simbolo.info.items()]) if simbolo.info else ""
+            treeview.insert("", "end", values=(nombre, simbolo.tipo, info_str))
 
 def ast_to_bnf(ast, nivel=0):
     def indent(n): return "  " * n
@@ -165,7 +155,7 @@ def main():
     ui = create_interface()
 
     # Configurar eventos
-    ui.editor.bind("<KeyRelease>", lambda e: analizar_codigo(ui.editor, ui.tabla, ui.status_label, ui.symbols_text))
+    ui.editor.bind("<KeyRelease>", lambda e: analizar_codigo(ui.editor, ui.tabla, ui.status_label, ui.symbols_tree))
     ui.btn_ast.config(command=lambda: mostrar_ast_manual(ui.status_label))
     ui.btn_code.config(command=lambda: mostrar_codigo_intermedio(ui.status_label))
 
