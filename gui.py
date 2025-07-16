@@ -5,23 +5,11 @@ from dataclasses import dataclass
 import platform
 import subprocess
 import os
+from darkdetect import isDark
 
 def is_dark_mode():
-    system = platform.system()
-    if system == "Windows":
-        try:
-            import winreg
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
-                                 r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
-            value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
-            return value == 0
-        except Exception:
-            return False
-    elif system == "Linux":
-        # Verificar variables de entorno comunes para temas oscuros
-        dark_env = os.environ.get("GTK_THEME", "").lower() + os.environ.get("COLORFGBG", "").lower()
-        return 'dark' in dark_env or '0' in dark_env
-    return False
+    return isDark()
+
 
 # Paleta Material Design con ajustes para modo claro/oscuro
 def get_theme_colors():
