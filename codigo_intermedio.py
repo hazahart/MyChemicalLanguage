@@ -24,18 +24,17 @@ class CodeGenerator:
     def expr_to_notation(self, expr, notation="infix"):
         if not isinstance(expr, tuple):
             return str(expr)
-        if expr[0] in ["VAR", "NUM", "TEXT"]:
+        if expr[0] in ("VAR", "NUM", "TEXT"):
             return expr[1]
         if expr[0] == "BIN_OP":
             op, left, right = expr[1], expr[2], expr[3]
-            left_str = self.expr_to_notation(left, notation)
-            right_str = self.expr_to_notation(right, notation)
+            L = self.expr_to_notation(left, notation)
+            R = self.expr_to_notation(right, notation)
             if notation == "prefix":
-                return f"{op} {left_str} {right_str}"
+                return f"{op} {L} {R}"
             elif notation == "postfix":
-                return f"{left_str} {right_str} {op}"
-            else:  # infix
-                return f"({left_str} {op} {right_str})"
+                return f"{L} {R} {op}"
+            return f"({L} {op} {R})"
         return ""
 
     def generate(self, ast):
@@ -55,9 +54,11 @@ class CodeGenerator:
         if not isinstance(node, tuple):
             return
         node_type = node[0]
+
         if node_type == "PROGRAM":
             for stmt in node[1]:
                 self.generate_stmt(stmt)
+
         elif node_type == "SUSTANCIA":
             name, qty, unit, meta = node[1], node[2], node[3], node[4]
             self.polish.append(f"DECLARE sustancia {name} = {qty}{unit or ''}")
@@ -70,9 +71,10 @@ class CodeGenerator:
                     self.pcode.append(f"META {name} {v}{u}")
                     self.triples.append((len(self.triples), "META", name, f"{v}{u}"))
                     self.quads.append((len(self.quads), "META", name, f"{v}{u}", None))
+
         elif node_type == "NUMERO":
-            name, value_expr = node[1], node[2]
-            result = self.generate_expr(value_expr)
+            name, expr = node[1], node[2]
+            result = self.generate_expr(expr)
             self.polish.append(f"DECLARE numero {name} = {result}")
             self.pcode.append(f"DECL {name} numero")
             self.pcode.append(f"STO {name} {result}")
@@ -80,6 +82,7 @@ class CodeGenerator:
             self.triples.append((len(self.triples), "=", name, result))
             self.quads.append((len(self.quads), "DECL", name, "numero", None))
             self.quads.append((len(self.quads), "=", name, result, None))
+
         elif node_type == "CADENA":
             name, value = node[1], node[2]
             self.polish.append(f"DECLARE cadena {name} = {value}")
@@ -89,15 +92,20 @@ class CodeGenerator:
             self.triples.append((len(self.triples), "=", name, value))
             self.quads.append((len(self.quads), "DECL", name, "cadena", None))
             self.quads.append((len(self.quads), "=", name, value, None))
+
         elif node_type == "ASIGNACION":
             name, expr = node[1], node[2]
             result = self.generate_expr(expr)
             self.polish.append(f"{name} = {result}")
             self.pcode.append(f"STO {name} {result}")
-            self.triples.append((len(self.triples), "=", name, result))
-            self.quads.append((len(self.quads), "=", name, result, None))
+            # Solo triplo/cuádruplo si no es literal
+            if not result.isdigit():
+                self.triples.append((len(self.triples), "=", name, result))
+                self.quads.append((len(self.quads), "=", name, result, None))
+
         elif node_type == "EXPRESSION":
             self.generate_expr(node[1])
+
         elif node_type == "DEF_REACCION":
             name, reactivos, productos, body = node[1], node[2], node[3], node[4]
             self.current_function = name
@@ -228,23 +236,44 @@ class CodeGenerator:
             self.quads.append((len(self.quads), "COMMENT", node[1], None, None))
 
     def generate_expr(self, expr):
+        # Variables, literales y texto
         if expr[0] == "VAR":
             return expr[1]
-        elif expr[0] == "NUM":
+        if expr[0] == "NUM":
             return expr[1]
-        elif expr[0] == "TEXT":
+        if expr[0] == "TEXT":
             return expr[1]
-        elif expr[0] == "BIN_OP":
+
+        # Operación binaria
+        if expr[0] == "BIN_OP":
             op, left, right = expr[1], expr[2], expr[3]
-            left_result = self.generate_expr(left)
-            right_result = self.generate_expr(right)
+
+            # 1) Generar recursivamente operandos
+            L = self.generate_expr(left)
+            R = self.generate_expr(right)
+
+            # 2) Emitir siempre triplo y cuádruplo de la operación
+            idx = len(self.triples)
+            self.triples.append((idx, op, L, R))
+            self.quads.append((idx, op, L, R, None))
+
+            # 3) Si ambos son literales, plegar y devolver literal
+            if left[0] == right[0] == "NUM":
+                try:
+                    v = eval(f"{L} {op} {R}")
+                    if isinstance(v, float) and v.is_integer():
+                        v = int(v)
+                    return str(v)
+                except Exception:
+                    pass
+
+            # 4) Si no, emitir OP con temporal
             temp = self.new_temp()
             polish_str = self.expr_to_notation(expr, "prefix")
             self.polish.append(f"{temp} = {polish_str}")
-            self.pcode.append(f"OP {op} {left_result} {right_result} {temp}")
-            self.triples.append((len(self.triples), op, left_result, right_result))
-            self.quads.append((len(self.quads), op, left_result, right_result, temp))
+            self.pcode.append(f"OP {op} {L} {R} {temp}")
             return temp
+
         return ""
 
     def generate_cond(self, cond):

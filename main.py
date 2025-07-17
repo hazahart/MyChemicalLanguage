@@ -8,6 +8,8 @@ from codigo_intermedio import *
 from mcl_tokens import *
 from simbolos import TablaSimbolos
 from gui import create_interface
+from optimizador_global import OptimizadorGlobal
+from peephole_optimizer import PeepholeOptimizer
 
 # Variables globales
 ultimo_ast = None
@@ -45,9 +47,25 @@ def analizar_codigo(editor, tabla, status_label, symbols_tree):
             errores = parser.errors + errores_semanticos
             status_label.config(text="\n".join(errores), fg="#FF5252")
         else:
+            # Optimización global AST
+            print("[main] Iniciando optimización del AST...")
+            opt = OptimizadorGlobal(ast)
+            ast_opt = opt.optimizar()
+
+            # Generar código intermedio optimizado
+            print("[main] Generando código intermedio optimizado...")
             code_gen = CodeGenerator(tabla_simbolos)
-            ultimo_codigo_intermedio = code_gen.generate(ast)
-            status_label.config(text="✓ Análisis completado correctamente", fg="#4CAF50")
+            ultimo_codigo_intermedio = code_gen.generate(ast_opt)
+
+            # Guardar copia original del P-code para visualización
+            ultimo_codigo_intermedio["pcode_original"] = code_gen.pcode.copy()
+
+            # Optimización de mirilla (P-code)
+            print("[main] Aplicando optimización de mirilla sobre P-code...")
+            p_opt = PeepholeOptimizer(ultimo_codigo_intermedio["pcode"])
+            ultimo_codigo_intermedio["pcode"] = p_opt.optimizar()
+
+            status_label.config(text="✓ Análisis y optimización completados", fg="#4CAF50")
 
         # Actualizar tabla de símbolos
         actualizar_tabla_simbolos(symbols_tree, tabla_simbolos)
@@ -128,7 +146,20 @@ def mostrar_codigo_intermedio(status_label):
         notebook.add(pcode_frame, text="Código P")
         pcode_txt = scrolledtext.ScrolledText(pcode_frame, font=("Courier", 10))
         pcode_txt.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        pcode_txt.insert(tk.END, "\n".join(ultimo_codigo_intermedio["pcode"]))
+
+        pcode_original = ultimo_codigo_intermedio.get("pcode_original")
+        pcode_final = ultimo_codigo_intermedio["pcode"]
+
+        if pcode_original:
+            for line in pcode_original:
+                if line not in pcode_final:
+                    pcode_txt.insert(tk.END, f"- {line}\n", "eliminado")
+            for line in pcode_final:
+                pcode_txt.insert(tk.END, f"{line}\n")
+        else:
+            pcode_txt.insert(tk.END, "\n".join(pcode_final))
+
+        pcode_txt.tag_config("eliminado", foreground="red", font=("Courier", 10, "italic"))
         pcode_txt.config(state=tk.DISABLED)
 
         # Triples
