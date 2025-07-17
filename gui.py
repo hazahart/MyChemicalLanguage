@@ -2,19 +2,13 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext
 import tkinter.font as tkFont
 from dataclasses import dataclass
-import platform
-import subprocess
-import os
 from darkdetect import isDark
 
 def is_dark_mode():
     return isDark()
 
-
-# Paleta Material Design con ajustes para modo claro/oscuro
 def get_theme_colors():
     dark_mode = is_dark_mode()
-
     if dark_mode:
         return {
             'primary': '#1F2937',
@@ -58,7 +52,9 @@ class UIComponents:
     status_label: tk.Label
     btn_ast: tk.Button
     btn_code: tk.Button
-    symbols_tree: ttk.Treeview  # Cambiamos symbols_text por symbols_tree
+    btn_ejecutar: tk.Button
+    symbols_tree: ttk.Treeview
+    notebook: ttk.Notebook
 
 class ModernFrame(tk.Frame):
     def __init__(self, parent, bg_color=None, **kwargs):
@@ -110,44 +106,44 @@ def create_interface():
     THEME_COLORS = get_theme_colors()
 
     syntax_colors = {
-        "dark": {  # One Dark
-                 "PALABRA_RESERVADA": ("#C678DD", "bold"),
-                 "UNIDAD": ("#56B6C2", "normal"),
-                 "IDENTIFICADOR": ("#ABB2BF", "italic"),
-                 "NUMERO": ("#D19A66", "normal"),
-                 "OPERADOR": ("#61AFEF", "normal"),
-                 "PUNTUACION": ("#E06C75", "normal"),
-                 "LLAVE": ("#E5C07B", "normal"),
-                 "PAR_CORCHETE": ("#E5C07B", "normal"),
-                 "TEXTO": ("#98C379", "normal"),
-                 "COMENTARIO": ("#5C6370", "italic"),
-                 "DESCONOCIDO": ("#FF5555", "bold"),
-                 "bg": "#282C34",
-                 "fg": "#ABB2BF",
-                 "FUSIONAR": ("#61AFEF", "bold"),
-                 "SEPARAR": ("#61AFEF", "bold"),
-                 "CATALIZAR": ("#61AFEF", "bold"),
-                 "DILUIR": ("#61AFEF", "bold"),
-                 },
-        "light": {  # Xcode
-                  "PALABRA_RESERVADA": ("#0000FF", "bold"),
-                  "UNIDAD": ("#C41A16", "normal"),
-                  "IDENTIFICADOR": ("#234A97", "italic"),
-                  "NUMERO": ("#1C00CF", "normal"),
-                  "OPERADOR": ("#000000", "normal"),
-                  "PUNTUACION": ("#000000", "normal"),
-                  "LLAVE": ("#8B4513", "normal"),
-                  "PAR_CORCHETE": ("#8B4513", "normal"),
-                  "TEXTO": ("#008000", "normal"),
-                  "COMENTARIO": ("#808080", "italic"),
-                  "DESCONOCIDO": ("#FF0000", "bold"),
-                  "bg": "#FFFFFF",
-                  "fg": "#000000",
-                  "FUSIONAR": ("#000000", "bold"),
-                  "SEPARAR": ("#000000", "bold"),
-                  "CATALIZAR": ("#000000", "bold"),
-                  "DILUIR": ("#000000", "bold"),
-                  }
+        "dark": {
+            "PALABRA_RESERVADA": ("#C678DD", "bold"),
+            "UNIDAD": ("#56B6C2", "normal"),
+            "IDENTIFICADOR": ("#ABB2BF", "italic"),
+            "NUMERO": ("#D19A66", "normal"),
+            "OPERADOR": ("#61AFEF", "normal"),
+            "PUNTUACION": ("#E06C75", "normal"),
+            "LLAVE": ("#E5C07B", "normal"),
+            "PAR_CORCHETE": ("#E5C07B", "normal"),
+            "TEXTO": ("#98C379", "normal"),
+            "COMENTARIO": ("#5C6370", "italic"),
+            "DESCONOCIDO": ("#FF5555", "bold"),
+            "bg": "#282C34",
+            "fg": "#ABB2BF",
+            "FUSIONAR": ("#61AFEF", "bold"),
+            "SEPARAR": ("#61AFEF", "bold"),
+            "CATALIZAR": ("#61AFEF", "bold"),
+            "DILUIR": ("#61AFEF", "bold"),
+        },
+        "light": {
+            "PALABRA_RESERVADA": ("#0000FF", "bold"),
+            "UNIDAD": ("#C41A16", "normal"),
+            "IDENTIFICADOR": ("#234A97", "italic"),
+            "NUMERO": ("#1C00CF", "normal"),
+            "OPERADOR": ("#000000", "normal"),
+            "PUNTUACION": ("#000000", "normal"),
+            "LLAVE": ("#8B4513", "normal"),
+            "PAR_CORCHETE": ("#8B4513", "normal"),
+            "TEXTO": ("#008000", "normal"),
+            "COMENTARIO": ("#808080", "italic"),
+            "DESCONOCIDO": ("#FF0000", "bold"),
+            "bg": "#FFFFFF",
+            "fg": "#000000",
+            "FUSIONAR": ("#000000", "bold"),
+            "SEPARAR": ("#000000", "bold"),
+            "CATALIZAR": ("#000000", "bold"),
+            "DILUIR": ("#000000", "bold"),
+        }
     }
 
     theme = syntax_colors["dark"] if dark_mode else syntax_colors["light"]
@@ -199,6 +195,9 @@ def create_interface():
     btn_code = ModernButton(btn_frame, text="📜 Código Intermedio")
     btn_code.pack(side=tk.LEFT, padx=5)
 
+    btn_ejecutar = ModernButton(btn_frame, text="▶ Ejecutar")
+    btn_ejecutar.pack(side=tk.LEFT, padx=5)
+
     editor_frame = ModernFrame(left_panel, bg_color=THEME_COLORS['editor_bg'])
     editor_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
@@ -216,7 +215,6 @@ def create_interface():
                                        pady=15)
     editor.pack(fill=tk.BOTH, expand=True)
 
-    # Panel derecho con notebook
     right_panel = ModernFrame(content_frame, bg_color=THEME_COLORS['bg_secondary'])
     right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
 
@@ -309,10 +307,11 @@ def create_interface():
         status_label=status_label,
         btn_ast=btn_ast,
         btn_code=btn_code,
-        symbols_tree=symbols_tree
+        btn_ejecutar=btn_ejecutar,
+        symbols_tree=symbols_tree,
+        notebook=notebook
     )
 
-# Ejecutar la interfaz
 if __name__ == "__main__":
     ui = create_interface()
     ui.root.mainloop()

@@ -3,11 +3,12 @@ from tkinter import ttk, scrolledtext
 import re
 from analizador_lexico import AFD_Lexico
 from analizador_sintactico import Parser
-from analizador_semantico import *
-from codigo_intermedio import *
+from analizador_semantico import AnalizadorSemantico
+from codigo_intermedio import CodeGenerator
+from interprete import Interprete
 from mcl_tokens import *
 from simbolos import TablaSimbolos
-from gui import create_interface
+from gui import *
 from optimizador_global import OptimizadorGlobal
 from peephole_optimizer import PeepholeOptimizer
 
@@ -16,7 +17,7 @@ ultimo_ast = None
 ultimo_tabla_simbolos = None
 ultimo_codigo_intermedio = None
 
-def analizar_codigo(editor, tabla, status_label, symbols_tree):
+def analizar_codigo(editor, tabla, status_label, symbols_tree, resultados_txt):
     global ultimo_ast, ultimo_tabla_simbolos, ultimo_codigo_intermedio
     txt = editor.get("1.0", tk.END)
     tokens = AFD_Lexico(txt).run()
@@ -60,13 +61,22 @@ def analizar_codigo(editor, tabla, status_label, symbols_tree):
 
             # Optimización de mirilla (P-code)
             p_opt = PeepholeOptimizer(ultimo_codigo_intermedio["pcode_original"])
-            optimized_pcode, removed_instructions = p_opt.optimizar()  # Recibir eliminaciones
+            optimized_pcode, removed_instructions = p_opt.optimizar()
             ultimo_codigo_intermedio["pcode"] = optimized_pcode
-            ultimo_codigo_intermedio["removed"] = removed_instructions  # Guardar eliminaciones
+            ultimo_codigo_intermedio["removed"] = removed_instructions
             status_label.config(text="✓ Análisis y optimización completados", fg="#4CAF50")
 
         # Actualizar tabla de símbolos
         actualizar_tabla_simbolos(symbols_tree, tabla_simbolos)
+
+        # Ejecutar el código
+        interprete = Interprete(ast, tabla_simbolos)
+        resultados, errores_ejecucion = interprete.ejecutar()
+        resultados_txt.delete("1.0", tk.END)
+        if errores_ejecucion:
+            resultados_txt.insert(tk.END, "\n".join(errores_ejecucion), "error")
+        else:
+            resultados_txt.insert(tk.END, "\n".join(resultados) if resultados else "Ejecución completada sin salida")
 
     except SyntaxError as ex:
         msg = str(ex)
@@ -84,12 +94,10 @@ def analizar_codigo(editor, tabla, status_label, symbols_tree):
         status_label.config(text=f"Error: {ex}", fg="#FF5252")
 
 def actualizar_tabla_simbolos(treeview, tabla_simbolos):
-    treeview.delete(*treeview.get_children())  # Limpiar la tabla actual
+    treeview.delete(*treeview.get_children())
     for i, tabla in enumerate(tabla_simbolos.tablas):
-        # Insertar encabezado de ámbito
         treeview.insert("", "end", values=(f"Ámbito {i + 1}", "", ""), tags=("header",))
         for nombre, simbolo in tabla.items():
-            # Formatear información adicional
             info_str = ", ".join([f"{k}={v}" for k, v in simbolo.info.items()]) if simbolo.info else ""
             treeview.insert("", "end", values=(nombre, simbolo.tipo, info_str))
 
@@ -147,38 +155,20 @@ def mostrar_codigo_intermedio(status_label):
 
         pcode_original = ultimo_codigo_intermedio.get("pcode_original")
         pcode_final = ultimo_codigo_intermedio["pcode"]
+        removed = ultimo_codigo_intermedio.get("removed", [])
 
-        if pcode_original:
-            for line in pcode_original:
-                if line not in pcode_final:
-                    pcode_txt.insert(tk.END, f"- {line}\n", "eliminado")
-            for line in pcode_final:
-                pcode_txt.insert(tk.END, f"{line}\n")
-        else:
-            pcode_txt.insert(tk.END, "\n".join(pcode_final))
-
-        pcode_txt.tag_config("eliminado", foreground="red", font=("Courier", 10, "italic"))
-        pcode_txt.config(state=tk.DISABLED)
-
-        pcode_original = ultimo_codigo_intermedio.get("pcode_original")
-        pcode_final = ultimo_codigo_intermedio["pcode"]
-        removed = ultimo_codigo_intermedio.get("removed", [])  # Obtener eliminaciones
-
-        # Mostrar código original con eliminaciones marcadas
         for line in pcode_original:
             if line in removed:
-                pcode_txt.insert(tk.END, f"- {line}\n", "eliminado")  # Mostrar en rojo/itálica
+                pcode_txt.insert(tk.END, f"- {line}\n", "eliminado")
             else:
                 pcode_txt.insert(tk.END, f"{line}\n")
-
-        # Mostrar código optimizado final
         pcode_txt.insert(tk.END, "\n\n--- CÓDIGO OPTIMIZADO ---\n", "optimizado")
         for line in pcode_final:
             pcode_txt.insert(tk.END, f"{line}\n")
 
-        # Configurar estilos
         pcode_txt.tag_config("eliminado", foreground="red", font=("Courier", 10, "italic"))
         pcode_txt.tag_config("optimizado", foreground="green", font=("Courier", 10, "bold"))
+        pcode_txt.config(state=tk.DISABLED)
 
         # Triples
         triples_frame = ttk.Frame(notebook)
@@ -203,10 +193,22 @@ def mostrar_codigo_intermedio(status_label):
 def main():
     ui = create_interface()
 
-    # Configurar eventos
-    ui.editor.bind("<KeyRelease>", lambda e: analizar_codigo(ui.editor, ui.tabla, ui.status_label, ui.symbols_tree))
+    # Add resultados_txt to UIComponents
+    resultados_frame = ttk.Frame(ui.notebook)
+    ui.notebook.add(resultados_frame, text="📈 Resultados")
+    resultados_txt = scrolledtext.ScrolledText(resultados_frame, font=("Courier", 10))
+    resultados_txt.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+    resultados_txt.tag_config("error", foreground="red", font=("Courier", 10, "italic"))
+
+    # Add execute button
+    ui.btn_ejecutar = ModernButton(ui.btn_ejecutar, text="▶ Ejecutar")
+    ui.btn_ejecutar.pack(side=tk.LEFT, padx=5)
+
+    # Configure events
+    ui.editor.bind("<KeyRelease>", lambda e: analizar_codigo(ui.editor, ui.tabla, ui.status_label, ui.symbols_tree, resultados_txt))
     ui.btn_ast.config(command=lambda: mostrar_ast_manual(ui.status_label))
     ui.btn_code.config(command=lambda: mostrar_codigo_intermedio(ui.status_label))
+    ui.btn_ejecutar.config(command=lambda: analizar_codigo(ui.editor, ui.tabla, ui.status_label, ui.symbols_tree, resultados_txt))
 
     ui.root.mainloop()
 
