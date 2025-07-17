@@ -48,12 +48,10 @@ def analizar_codigo(editor, tabla, status_label, symbols_tree):
             status_label.config(text="\n".join(errores), fg="#FF5252")
         else:
             # Optimización global AST
-            print("[main] Iniciando optimización del AST...")
             opt = OptimizadorGlobal(ast)
             ast_opt = opt.optimizar()
 
             # Generar código intermedio optimizado
-            print("[main] Generando código intermedio optimizado...")
             code_gen = CodeGenerator(tabla_simbolos)
             ultimo_codigo_intermedio = code_gen.generate(ast_opt)
 
@@ -61,12 +59,10 @@ def analizar_codigo(editor, tabla, status_label, symbols_tree):
             ultimo_codigo_intermedio["pcode_original"] = code_gen.pcode.copy()
 
             # Optimización de mirilla (P-code)
-            print("[main] Aplicando optimización de mirilla sobre P-code...")
             p_opt = PeepholeOptimizer(ultimo_codigo_intermedio["pcode_original"])
             optimized_pcode, removed_instructions = p_opt.optimizar()  # Recibir eliminaciones
             ultimo_codigo_intermedio["pcode"] = optimized_pcode
             ultimo_codigo_intermedio["removed"] = removed_instructions  # Guardar eliminaciones
-
             status_label.config(text="✓ Análisis y optimización completados", fg="#4CAF50")
 
         # Actualizar tabla de símbolos

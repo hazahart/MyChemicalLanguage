@@ -7,20 +7,11 @@ class OptimizadorGlobal:
         self.consts = {}
 
     def optimizar(self):
-        print("[OptimizadorGlobal] 1) Folding inicial de literales")
         ast1 = self._fold_ast(self.ast)
-
-        print("[OptimizadorGlobal] 2) Recolección de constantes")
         self.consts.clear()
         self._collect_consts(ast1)
-        print(f"[OptimizadorGlobal]   constantes encontradas: {self.consts}")
-
-        print("[OptimizadorGlobal] 3) Propagación de constantes")
         ast2 = self._propagate_consts(ast1)
-
-        print("[OptimizadorGlobal] 4) Segundo folding tras propagación")
         ast3 = self._fold_ast(ast2)
-
         return ast3
 
     # --------------------------------------------------

@@ -4,7 +4,6 @@ class PeepholeOptimizer:
         self.removed = []  # Lista para guardar instrucciones eliminadas
 
     def optimizar(self):
-        print("[PeepholeOptimizer] Ejecutando optimización de mirilla sobre P-code...")
         nueva = []
         i = 0
         while i < len(self.pcode):
