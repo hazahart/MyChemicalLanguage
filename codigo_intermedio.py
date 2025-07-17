@@ -94,14 +94,21 @@ class CodeGenerator:
             self.quads.append((len(self.quads), "=", name, value, None))
 
         elif node_type == "ASIGNACION":
-            name, expr = node[1], node[2]
+            target, expr = node[1], node[2]
             result = self.generate_expr(expr)
-            self.polish.append(f"{name} = {result}")
-            self.pcode.append(f"STO {name} {result}")
-            # Solo triplo/cuádruplo si no es literal
-            if not result.isdigit():
-                self.triples.append((len(self.triples), "=", name, result))
-                self.quads.append((len(self.quads), "=", name, result, None))
+            if isinstance(target, tuple) and target[0] == "PROP_ACCESS":
+                var, prop = target[1], target[2]
+                self.polish.append(f"{var}.{prop} = {result}")
+                self.pcode.append(f"SET_PROP {var} {prop} {result}")
+                self.triples.append((len(self.triples), "SET_PROP", var, prop, result))
+                self.quads.append((len(self.quads), "SET_PROP", var, prop, result))
+            else:
+                name = target
+                self.polish.append(f"{name} = {result}")
+                self.pcode.append(f"STO {name} {result}")
+                if not result.isdigit():
+                    self.triples.append((len(self.triples), "=", name, result))
+                    self.quads.append((len(self.quads), "=", name, result, None))
 
         elif node_type == "EXPRESSION":
             self.generate_expr(node[1])
@@ -236,28 +243,27 @@ class CodeGenerator:
             self.quads.append((len(self.quads), "COMMENT", node[1], None, None))
 
     def generate_expr(self, expr):
-        # Variables, literales y texto
         if expr[0] == "VAR":
             return expr[1]
         if expr[0] == "NUM":
             return expr[1]
         if expr[0] == "TEXT":
             return expr[1]
-
-        # Operación binaria
+        if expr[0] == "PROP_ACCESS":
+            var, prop = expr[1], expr[2]
+            temp = self.new_temp()
+            self.polish.append(f"{temp} = {var}.{prop}")
+            self.pcode.append(f"GET_PROP {var} {prop} {temp}")
+            self.triples.append((len(self.triples), "GET_PROP", var, prop))
+            self.quads.append((len(self.quads), "GET_PROP", var, prop, temp))
+            return temp
         if expr[0] == "BIN_OP":
             op, left, right = expr[1], expr[2], expr[3]
-
-            # 1) Generar recursivamente operandos
             L = self.generate_expr(left)
             R = self.generate_expr(right)
-
-            # 2) Emitir siempre triplo y cuádruplo de la operación
             idx = len(self.triples)
             self.triples.append((idx, op, L, R))
             self.quads.append((idx, op, L, R, None))
-
-            # 3) Si ambos son literales, plegar y devolver literal
             if left[0] == right[0] == "NUM":
                 try:
                     v = eval(f"{L} {op} {R}")
@@ -266,14 +272,11 @@ class CodeGenerator:
                     return str(v)
                 except Exception:
                     pass
-
-            # 4) Si no, emitir OP con temporal
             temp = self.new_temp()
             polish_str = self.expr_to_notation(expr, "prefix")
             self.polish.append(f"{temp} = {polish_str}")
             self.pcode.append(f"OP {op} {L} {R} {temp}")
             return temp
-
         return ""
 
     def generate_cond(self, cond):

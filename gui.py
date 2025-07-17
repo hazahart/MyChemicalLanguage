@@ -124,6 +124,7 @@ def create_interface():
             "SEPARAR": ("#61AFEF", "bold"),
             "CATALIZAR": ("#61AFEF", "bold"),
             "DILUIR": ("#61AFEF", "bold"),
+            "=>": ("#61AFEF", "normal"),  # Added for arrow operator
         },
         "light": {
             "PALABRA_RESERVADA": ("#0000FF", "bold"),
@@ -143,6 +144,7 @@ def create_interface():
             "SEPARAR": ("#000000", "bold"),
             "CATALIZAR": ("#000000", "bold"),
             "DILUIR": ("#000000", "bold"),
+            "=>": ("#000000", "normal"),  # Added for arrow operator
         }
     }
 

@@ -37,7 +37,7 @@ CODIGOS_TOKEN_OPERADORES = {
     "-": 2050, "*": 2040, "/": 2060,
     "@": 2070, "<": 2080, ">": 2090, 
     "<=": 2100, ">=": 2110, "!=": 2120, 
-    "==": 2130,
+    "==": 2130, "=>": 2140  # Added arrow operator
 }
 
 CODIGOS_TOKEN_PUNTUACION = {

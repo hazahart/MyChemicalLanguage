@@ -48,9 +48,28 @@ class Interprete:
             self.variables[name] = {"valor": value}
 
         elif tipo == "ASIGNACION":
-            name, expr = nodo[1], nodo[2]
+            target, expr = nodo[1], nodo[2]
             valor = self._evaluar_expr(expr)
-            if valor is not None:
+            if valor is None:
+                return
+            if isinstance(target, tuple) and target[0] == "PROP_ACCESS":
+                var, prop = target[1], target[2]
+                if var not in self.variables:
+                    self.errores.append(f"Variable '{var}' no declarada")
+                    return
+                if prop == "cant":
+                    self.variables[var]["cantidad"] = valor
+                elif prop in ["temp", "presion"]:
+                    expected_unit = "gradC" if prop == "temp" else "atm"
+                    meta = self.variables[var].get("metadatos", [])
+                    new_meta = [(v, u) for v, u in meta if u != expected_unit]
+                    new_meta.append((str(valor), expected_unit))
+                    self.variables[var]["metadatos"] = new_meta
+                else:
+                    self.errores.append(f"Propiedad desconocida '{prop}' para '{var}'")
+                    return
+            else:
+                name = target
                 if name in self.variables:
                     self.variables[name]["valor"] = valor
                 else:
@@ -156,10 +175,24 @@ class Interprete:
             return None
         elif expr[0] == "PROP_ACCESS":
             var, prop = expr[1], expr[2]
-            if var in self.variables and prop in self.variables[var]:
-                return self.variables[var][prop]
-            self.errores.append(f"Propiedad '{prop}' no encontrada para '{var}'")
-            return None
+            if var not in self.variables:
+                self.errores.append(f"Variable '{var}' no definida")
+                return None
+            if prop == "cant":
+                if "cantidad" in self.variables[var]:
+                    return self.variables[var]["cantidad"]
+                self.errores.append(f"Sustancia '{var}' no tiene cantidad definida")
+                return None
+            elif prop in ["temp", "presion"]:
+                expected_unit = "gradC" if prop == "temp" else "atm"
+                for v, u in self.variables[var].get("metadatos", []):
+                    if u == expected_unit:
+                        return Decimal(v)
+                self.errores.append(f"Propiedad '{prop}' no definida para '{var}'")
+                return None
+            else:
+                self.errores.append(f"Propiedad desconocida '{prop}' para '{var}'")
+                return None
         elif expr[0] == "NUM":
             try:
                 return Decimal(expr[1])
@@ -235,10 +268,19 @@ class Interprete:
                 var, prop = node[1], node[2]
                 simbolo = self.tabla_simbolos.buscar(var)
                 if not simbolo or simbolo.tipo != "sustancia":
+                    self.errores.append(f"'{var}' debe ser una sustancia para acceder a la propiedad '{prop}'")
                     return "desconocido", None
-                if prop == "cantidad":
+                if prop == "cant":
                     return "numero", simbolo.info.get("unidad")
+                elif prop in ["temp", "presion"]:
+                    expected_unit = "gradC" if prop == "temp" else "atm"
+                    for v, u in simbolo.info.get("metadatos", []):
+                        if u == expected_unit:
+                            return "numero", u
+                    self.errores.append(f"Propiedad '{prop}' no definida para la sustancia '{var}'")
+                    return "desconocido", None
                 else:
+                    self.errores.append(f"Propiedad desconocida '{prop}' para la sustancia '{var}'")
                     return "desconocido", None
             elif node[0] == "NUM":
                 return "numero", None
@@ -254,5 +296,6 @@ class Interprete:
                     return "numero", None
                 if op == "/" and left_type == "numero" and right_type == "numero":
                     return "numero", None
+                self.errores.append(f"Operación '{op}' no válida entre {left_type} y {right_type}")
                 return "desconocido", None
         return "desconocido", None

@@ -74,18 +74,50 @@ class AnalizadorSemantico:
             self.errores.append(f"Valor de cadena '{name}' no es válido")
 
     def _verificar_asignacion(self, nodo):
-        _, name, expr = nodo
-        simbolo = self.tabla_simbolos.buscar(name)
-        if not simbolo:
-            self.errores.append(f"Variable '{name}' no declarada")
-            return
-
-        expr_type, expr_unit = self._infer_type(expr)
-        if expr_type != simbolo.tipo:
-            self.errores.append(f"Tipo incompatible en asignación: {name} es {simbolo.tipo}, expresión es {expr_type}")
-
-        if simbolo.tipo == "sustancia" and simbolo.info.get("unidad") and expr_unit and simbolo.info["unidad"] != expr_unit:
-            self.errores.append(f"Incompatibilidad de unidades: {name} usa {simbolo.info['unidad']}, expresión usa {expr_unit}")
+        _, target, expr = nodo
+        if isinstance(target, tuple) and target[0] == "PROP_ACCESS":
+            var, prop = target[1], target[2]
+            simbolo = self.tabla_simbolos.buscar(var)
+            if not simbolo:
+                self.errores.append(f"Variable '{var}' no declarada")
+                return
+            if simbolo.tipo != "sustancia":
+                self.errores.append(f"'{var}' debe ser una sustancia para asignar a la propiedad '{prop}'")
+                return
+            expr_type, expr_unit = self._infer_type(expr)
+            if prop == "cant":
+                if expr_type != "numero":
+                    self.errores.append(f"Asignación a '{var}.cant' debe ser numérica, no {expr_type}")
+                if simbolo.info.get("unidad") and expr_unit and simbolo.info["unidad"] != expr_unit:
+                    self.errores.append(f"Incompatibilidad de unidades: '{var}' usa {simbolo.info['unidad']}, expresión usa {expr_unit}")
+            elif prop in ["temp", "presion"]:
+                if expr_type != "numero":
+                    self.errores.append(f"Asignación a '{var}.{prop}' debe ser numérica, no {expr_type}")
+                expected_unit = "gradC" if prop == "temp" else "atm"
+                if expr_unit != expected_unit:
+                    self.errores.append(f"Incompatibilidad de unidades: '{prop}' requiere {expected_unit}, expresión usa {expr_unit}")
+                # Verify if the property exists in metadatos or add it
+                meta = simbolo.info.get("metadatos", [])
+                found = False
+                for v, u in meta:
+                    if (prop == "temp" and u == "gradC") or (prop == "presion" and u == "atm"):
+                        found = True
+                        break
+                if not found:
+                    self.errores.append(f"Propiedad '{prop}' no definida para la sustancia '{var}'")
+            else:
+                self.errores.append(f"Propiedad desconocida '{prop}' para la sustancia '{var}'")
+        else:
+            name = target
+            simbolo = self.tabla_simbolos.buscar(name)
+            if not simbolo:
+                self.errores.append(f"Variable '{name}' no declarada")
+                return
+            expr_type, expr_unit = self._infer_type(expr)
+            if expr_type != simbolo.tipo:
+                self.errores.append(f"Tipo incompatible en asignación: {name} es {simbolo.tipo}, expresión es {expr_type}")
+            if simbolo.tipo == "sustancia" and simbolo.info.get("unidad") and expr_unit and simbolo.info["unidad"] != expr_unit:
+                self.errores.append(f"Incompatibilidad de unidades: {name} usa {simbolo.info['unidad']}, expresión usa {expr_unit}")
 
     def _verificar_reaccion(self, nodo):
         _, name, reactivos, productos, _ = nodo
@@ -150,6 +182,23 @@ class AnalizadorSemantico:
                 if not simbolo:
                     return "desconocido", None
                 return simbolo.tipo, simbolo.info.get("unidad")
+            elif node[0] == "PROP_ACCESS":
+                var, prop = node[1], node[2]
+                simbolo = self.tabla_simbolos.buscar(var)
+                if not simbolo or simbolo.tipo != "sustancia":
+                    self.errores.append(f"'{var}' debe ser una sustancia para acceder a la propiedad '{prop}'")
+                    return "desconocido", None
+                if prop == "cant":
+                    return "numero", simbolo.info.get("unidad")
+                elif prop in ["temp", "presion"]:
+                    for v, u in simbolo.info.get("metadatos", []):
+                        if (prop == "temp" and u == "gradC") or (prop == "presion" and u == "atm"):
+                            return "numero", u
+                    self.errores.append(f"Propiedad '{prop}' no definida para la sustancia '{var}'")
+                    return "desconocido", None
+                else:
+                    self.errores.append(f"Propiedad desconocida '{prop}' para la sustancia '{var}'")
+                    return "desconocido", None
             elif node[0] == "NUM":
                 return "numero", None
             elif node[0] == "TEXT":
@@ -158,7 +207,6 @@ class AnalizadorSemantico:
                 op, left, right = node[1], node[2], node[3]
                 left_type, left_unit = self._infer_type(left)
                 right_type, right_unit = self._infer_type(right)
-
                 if op in ["+", "-"]:
                     if left_type == right_type == "sustancia":
                         if left_unit != right_unit:
@@ -168,11 +216,15 @@ class AnalizadorSemantico:
                         return "cadena", None
                     elif left_type == right_type == "numero":
                         return "numero", None
+                    else:
+                        self.errores.append(f"Operador '{op}' no válido entre tipos {left_type} y {right_type}")
                 elif op in ["*", "/"]:
                     if left_type == "sustancia" and right_type == "numero":
                         return "sustancia", left_unit
                     elif left_type == right_type == "numero":
                         return "numero", None
+                    else:
+                        self.errores.append(f"Operador '{op}' no válido entre tipos {left_type} y {right_type}")
             elif node[0] == "COND":
                 return "booleano", None
             elif node[0] == "LOGIC":

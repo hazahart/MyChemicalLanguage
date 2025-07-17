@@ -123,6 +123,34 @@ class Parser:
 
     def cmd_asignacion_or_expr(self):
         name = self.look.valor; self.eat(TipoToken.IDENTIFICADOR)
+        if self.look.valor in (".", "=>"):
+            op = self.look.valor
+            self.eat(TipoToken.PUNTUACION if op == "." else TipoToken.OPERADOR, op)
+            prop = self.look.valor; self.eat(TipoToken.IDENTIFICADOR)
+            if self.look.valor == "=":
+                self.eat(TipoToken.OPERADOR, "=")
+                expr = self.expr()
+                expr_type, expr_unit = self._infer_type(expr)
+                simbolo = self.tabla_simbolos.buscar(name)
+                if simbolo is None:
+                    self.error(f"Variable '{name}' no declarada para asignación")
+                if simbolo.tipo != "sustancia":
+                    self.error(f"'{name}' debe ser una sustancia para asignar a la propiedad '{prop}'")
+                if prop == "cant":
+                    if expr_type != "numero":
+                        self.error(f"Asignación a 'cant' debe ser de tipo número, no {expr_type}")
+                    if simbolo.info.get("unidad") and expr_unit and simbolo.info["unidad"] != expr_unit:
+                        self.error(f"Incompatibilidad de unidades: '{name}' tiene '{simbolo.info['unidad']}', expresión tiene '{expr_unit}'")
+                elif prop in ["temp", "presion"]:
+                    if expr_type != "numero":
+                        self.error(f"Asignación a '{prop}' debe ser de tipo número, no {expr_type}")
+                    expected_unit = "gradC" if prop == "temp" else "atm"
+                    if expr_unit != expected_unit:
+                        self.error(f"Incompatibilidad de unidades: '{prop}' requiere '{expected_unit}', expresión tiene '{expr_unit}'")
+                else:
+                    self.error(f"Propiedad desconocida '{prop}' para la sustancia '{name}'")
+                self.eat(TipoToken.PUNTUACION, ";")
+                return ("ASIGNACION", ("PROP_ACCESS", name, prop), expr)
         if self.look.valor == "=":
             self.eat(TipoToken.OPERADOR, "=")
             expr = self.expr()
@@ -322,6 +350,13 @@ class Parser:
             simbolo = self.tabla_simbolos.buscar(v)
             if simbolo is None:
                 self.error(f"Variable '{v}' no declarada")
+            # Check for property access
+            if self.look.valor in (".", "=>"):
+                op = self.look.valor
+                self.eat(TipoToken.PUNTUACION if op == "." else TipoToken.OPERADOR, op)
+                prop = self.look.valor
+                self.eat(TipoToken.IDENTIFICADOR)
+                return ("PROP_ACCESS", v, prop)
             return ("VAR", v)
         if self.look.tipo == TipoToken.NUMERO:
             v = self.look.valor; self.eat(TipoToken.NUMERO)
@@ -375,9 +410,27 @@ class Parser:
         if isinstance(node, tuple):
             if node[0] == "VAR":
                 simbolo = self.tabla_simbolos.buscar(node[1])
-                if simbolo is None:
+                if not simbolo:
                     self.error(f"Variable '{node[1]}' no declarada")
                 return simbolo.tipo, simbolo.info.get("unidad")
+            if node[0] == "PROP_ACCESS":
+                var, prop = node[1], node[2]
+                simbolo = self.tabla_simbolos.buscar(var)
+                if not simbolo:
+                    self.error(f"Variable '{var}' no declarada")
+                if simbolo.tipo != "sustancia":
+                    self.error(f"'{var}' debe ser una sustancia para acceder a la propiedad '{prop}'")
+                if prop == "cant":
+                    return "numero", simbolo.info.get("unidad")
+                elif prop in ["temp", "presion"]:
+                    # Check if the property exists in metadatos
+                    for v, u in simbolo.info.get("metadatos", []):
+                        if (prop == "temp" and u == "gradC") or (prop == "presion" and u == "atm"):
+                            return "numero", u
+                    self.error(f"Propiedad '{prop}' no definida para la sustancia '{var}'")
+                else:
+                    self.error(f"Propiedad desconocida '{prop}' para la sustancia '{var}'")
+                return "desconocido", None
             if node[0] == "NUM":
                 return "numero", None
             if node[0] == "TEXT":
