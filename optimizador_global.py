@@ -14,15 +14,12 @@ class OptimizadorGlobal:
         ast3 = self._fold_ast(ast2)
         return ast3
 
-    # --------------------------------------------------
-    # 1 & 4) Constant Folding para BIN_OP con literales NUM
-    # --------------------------------------------------
     def _fold_ast(self, nodo):
-        # 1) Si es lista, recórrela y repliega cada elemento
+        # Si es lista, recórrela y repliega cada elemento
         if isinstance(nodo, list):
             return [self._fold_ast(x) for x in nodo]
 
-        # 2) Si no es tupla, devuélvelo tal cual
+        # Si no es tupla, devuélvelo tal cual
         if not isinstance(nodo, tuple):
             return nodo
 
@@ -54,9 +51,7 @@ class OptimizadorGlobal:
             return ("BIN_OP", op, l2, r2)
         return expr
 
-    # --------------------------------------------------
-    # 2) Recolectar constantes de asignaciones/literales
-    # --------------------------------------------------
+    # Recolectar constantes de asignaciones/literales
     def _collect_consts(self, nodo):
         if isinstance(nodo, tuple):
             head = nodo[0]
@@ -70,15 +65,13 @@ class OptimizadorGlobal:
             for elem in nodo:
                 self._collect_consts(elem)
 
-    # --------------------------------------------------
-    # 3) Constant Propagation
-    # --------------------------------------------------
+    # Constant Propagation
     def _propagate_consts(self, nodo):
-        # 1) Lista → propaga en cada elemento
+        # Lista → propaga en cada elemento
         if isinstance(nodo, list):
             return [self._propagate_consts(x) for x in nodo]
 
-        # 2) Sólo trata tuplas
+        # Sólo trata tuplas
         if not isinstance(nodo, tuple):
             return nodo
 
