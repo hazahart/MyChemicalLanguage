@@ -179,7 +179,7 @@ def mostrar_codigo_intermedio(status_label):
                                              for i, op, arg1, arg2 in ultimo_codigo_intermedio["triples"]))
         triples_txt.config(state=tk.DISABLED)
 
-        # Quadruples
+        # Quads
         quads_frame = ttk.Frame(notebook)
         notebook.add(quads_frame, text="Cuádruplos")
         quads_txt = scrolledtext.ScrolledText(quads_frame, font=("Courier", 10))
@@ -192,19 +192,15 @@ def mostrar_codigo_intermedio(status_label):
 
 def main():
     ui = create_interface()
-
-    # Add resultados_txt to UIComponents
     resultados_frame = ttk.Frame(ui.notebook)
     ui.notebook.add(resultados_frame, text="📈 Resultados")
     resultados_txt = scrolledtext.ScrolledText(resultados_frame, font=("Courier", 10))
     resultados_txt.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
     resultados_txt.tag_config("error", foreground="red", font=("Courier", 10, "italic"))
 
-    # Add execute button
     ui.btn_ejecutar = ModernButton(ui.btn_ejecutar, text="▶ Ejecutar")
     ui.btn_ejecutar.pack(side=tk.LEFT, padx=5)
 
-    # Configure events
     ui.editor.bind("<KeyRelease>", lambda e: analizar_codigo(ui.editor, ui.tabla, ui.status_label, ui.symbols_tree, resultados_txt))
     ui.btn_ast.config(command=lambda: mostrar_ast_manual(ui.status_label))
     ui.btn_code.config(command=lambda: mostrar_codigo_intermedio(ui.status_label))

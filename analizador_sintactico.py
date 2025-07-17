@@ -42,7 +42,7 @@ class Parser:
             if val == "mezclar": return self.cmd_mezclar_block()
             if val in ("repetir", "hacer"): return self.cmd_repetir()
             if val == "detener": return self.cmd_detener()
-            if val == "si": return self.cmd_si()  # Añadir esta línea
+            if val == "si": return self.cmd_si()
         if tp == TipoToken.IDENTIFICADOR:
             if self._peek_val() == "[":
                 return self.cmd_llamada()
