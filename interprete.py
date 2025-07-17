@@ -7,8 +7,8 @@ class Interprete:
     def __init__(self, ast, tabla_simbolos):
         self.ast = ast
         self.tabla_simbolos = tabla_simbolos
-        self.resultados = []  # To store output (e.g., from mostrar)
-        self.variables = {}  # Runtime values for variables
+        self.resultados = []
+        self.variables = {}
         self.errores = []
 
     def ejecutar(self):
@@ -32,7 +32,7 @@ class Interprete:
             name, qty, unit, meta = nodo[1], nodo[2], nodo[3], nodo[4]
             try:
                 qty = Decimal(qty)
-                self.variables[name] = {"valor": qty, "unidad": unit, "metadatos": meta}
+                self.variables[name] = {"cantidad": qty, "unidad": unit, "metadatos": meta}
             except InvalidOperation:
                 self.errores.append(f"Cantidad inválida para sustancia '{name}': {qty}")
 
@@ -40,29 +40,21 @@ class Interprete:
             name, expr = nodo[1], nodo[2]
             valor = self._evaluar_expr(expr)
             if valor is not None:
-                self.variables[name] = {"valor": valor, "unidad": None}
+                self.variables[name] = {"valor": valor}
 
         elif tipo == "CADENA":
             name, value = nodo[1], nodo[2]
-            # Remove quotes for string value
             value = value[1:-1] if value.startswith('"') and value.endswith('"') else value
-            self.variables[name] = {"valor": value, "unidad": None}
+            self.variables[name] = {"valor": value}
 
         elif tipo == "ASIGNACION":
             name, expr = nodo[1], nodo[2]
             valor = self._evaluar_expr(expr)
             if valor is not None:
-                simbolo = self.tabla_simbolos.buscar(name)
-                if simbolo:
-                    if simbolo.tipo == "sustancia":
-                        expr_type, expr_unit = self._infer_type(expr)
-                        if expr_type != "sustancia":
-                            self.errores.append(f"Asignación a '{name}' debe ser sustancia, no {expr_type}")
-                            return
-                        if simbolo.info.get("unidad") and expr_unit and simbolo.info["unidad"] != expr_unit:
-                            self.errores.append(f"Incompatibilidad de unidades en asignación a '{name}': {simbolo.info['unidad']} vs {expr_unit}")
-                            return
-                    self.variables[name] = {"valor": valor, "unidad": expr_unit if simbolo.tipo == "sustancia" else None}
+                if name in self.variables:
+                    self.variables[name]["valor"] = valor
+                else:
+                    self.errores.append(f"Variable '{name}' no declarada")
 
         elif tipo == "DEF_REACCION":
             name, reactivos, productos, cuerpo = nodo[1], nodo[2], nodo[3], nodo[4]
@@ -74,7 +66,6 @@ class Interprete:
             if not reaccion or reaccion["tipo"] != "reaccion":
                 self.errores.append(f"Reacción '{name}' no definida")
                 return
-            # Validate arguments
             expected = [(coeff, n) for coeff, n in reaccion["reactivos"]]
             if len(args) != len(expected):
                 self.errores.append(f"Reacción '{name}' espera {len(expected)} argumentos, se dieron {len(args)}")
@@ -83,12 +74,10 @@ class Interprete:
                 if n1 != n2 or c1 != c2:
                     self.errores.append(f"Reactivo esperado: {c1}{n1}, encontrado: {c2}{n2}")
                     return
-            # Execute reaction body with arguments
             self.tabla_simbolos.entrar_bloque()
             for coeff, param in args:
-                simbolo = self.tabla_simbolos.buscar(param)
-                if simbolo and param in self.variables:
-                    self.tabla_simbolos.insertar(param, Simbolo(param, "sustancia", cantidad=str(self.variables[param]["valor"]), unidad=self.variables[param]["unidad"]))
+                if param in self.variables:
+                    self.tabla_simbolos.insertar(param, Simbolo(param, "sustancia", cantidad=str(self.variables[param]["cantidad"]), unidad=self.variables[param]["unidad"]))
             self._ejecutar_nodo(reaccion["cuerpo"])
             self.tabla_simbolos.salir_bloque()
 
@@ -97,30 +86,18 @@ class Interprete:
             valor = self._evaluar_expr(expr)
             if valor is None:
                 return
-            simbolo = self.tabla_simbolos.buscar(tgt)
-            if not simbolo or simbolo.tipo != "sustancia":
+            if tgt not in self.variables or "cantidad" not in self.variables[tgt]:
                 self.errores.append(f"Destino '{tgt}' no es una sustancia válida")
                 return
-            expr_type, expr_unit = self._infer_type(expr)
-            if expr_type != "sustancia":
-                self.errores.append(f"Expresión en 'mezclar' debe ser sustancia, no {expr_type}")
-                return
-            if simbolo.info.get("unidad") and expr_unit and simbolo.info["unidad"] != expr_unit:
-                self.errores.append(f"Incompatibilidad de unidades en 'mezclar' a '{tgt}': {simbolo.info['unidad']} vs {expr_unit}")
-                return
-            self.variables[tgt] = {"valor": valor, "unidad": expr_unit}
+            self.variables[tgt]["cantidad"] += valor
 
         elif tipo == "BALANCEAR":
             expr = nodo[1]
             valor = self._evaluar_expr(expr)
             if valor is None:
                 return
-            expr_type, _ = self._infer_type(expr)
-            if expr_type != "sustancia":
-                self.errores.append(f"Expresión en 'balancear' debe ser sustancia, no {expr_type}")
-                return
-            # Simulate balancing (for now, just store the value)
-            self.variables[f"balanced_{expr[1]}"] = {"valor": valor, "unidad": None}
+            # Simular balanceo (por ahora, solo asignar el valor)
+            self.variables[f"balanced_{expr[1]}"] = {"cantidad": valor}
 
         elif tipo == "MOSTRAR":
             args = nodo[1]
@@ -154,7 +131,6 @@ class Interprete:
                     break
 
         elif tipo == "DETENER":
-            # Break from the current loop (handled by caller)
             raise StopIteration
 
         elif tipo == "BLOQUE":
@@ -172,11 +148,17 @@ class Interprete:
         if expr[0] == "VAR":
             name = expr[1]
             if name in self.variables:
-                return self.variables[name]["valor"]
+                return self.variables[name].get("valor", self.variables[name].get("cantidad"))
             simbolo = self.tabla_simbolos.buscar(name)
             if simbolo and "valor" in simbolo.info:
                 return Decimal(str(simbolo.info["valor"]))
             self.errores.append(f"Variable '{name}' no inicializada")
+            return None
+        elif expr[0] == "PROP_ACCESS":
+            var, prop = expr[1], expr[2]
+            if var in self.variables and prop in self.variables[var]:
+                return self.variables[var][prop]
+            self.errores.append(f"Propiedad '{prop}' no encontrada para '{var}'")
             return None
         elif expr[0] == "NUM":
             try:
@@ -249,6 +231,15 @@ class Interprete:
                 if not simbolo:
                     return "desconocido", None
                 return simbolo.tipo, simbolo.info.get("unidad")
+            elif node[0] == "PROP_ACCESS":
+                var, prop = node[1], node[2]
+                simbolo = self.tabla_simbolos.buscar(var)
+                if not simbolo or simbolo.tipo != "sustancia":
+                    return "desconocido", None
+                if prop == "cantidad":
+                    return "numero", simbolo.info.get("unidad")
+                else:
+                    return "desconocido", None
             elif node[0] == "NUM":
                 return "numero", None
             elif node[0] == "TEXT":
@@ -257,18 +248,11 @@ class Interprete:
                 op, left, right = node[1], node[2], node[3]
                 left_type, left_unit = self._infer_type(left)
                 right_type, right_unit = self._infer_type(right)
-                if op in ["+", "-"]:
-                    if left_type == right_type == "sustancia":
-                        if left_unit != right_unit:
-                            self.errores.append(f"Incompatibilidad de unidades: {left_unit} vs {right_unit}")
-                        return "sustancia", left_unit
-                    elif left_type == right_type == "cadena" and op == "+":
-                        return "cadena", None
-                    elif left_type == right_type == "numero":
-                        return "numero", None
-                elif op in ["*", "/"]:
-                    if left_type == "sustancia" and right_type == "numero":
-                        return "sustancia", left_unit
-                    elif left_type == right_type == "numero":
-                        return "numero", None
+                if op in ["+", "-"] and left_type == right_type == "numero":
+                    return "numero", None
+                if op == "*" and left_type == "numero" and right_type == "numero":
+                    return "numero", None
+                if op == "/" and left_type == "numero" and right_type == "numero":
+                    return "numero", None
+                return "desconocido", None
         return "desconocido", None
