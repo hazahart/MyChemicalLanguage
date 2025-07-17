@@ -62,8 +62,10 @@ def analizar_codigo(editor, tabla, status_label, symbols_tree):
 
             # Optimización de mirilla (P-code)
             print("[main] Aplicando optimización de mirilla sobre P-code...")
-            p_opt = PeepholeOptimizer(ultimo_codigo_intermedio["pcode"])
-            ultimo_codigo_intermedio["pcode"] = p_opt.optimizar()
+            p_opt = PeepholeOptimizer(ultimo_codigo_intermedio["pcode_original"])
+            optimized_pcode, removed_instructions = p_opt.optimizar()  # Recibir eliminaciones
+            ultimo_codigo_intermedio["pcode"] = optimized_pcode
+            ultimo_codigo_intermedio["removed"] = removed_instructions  # Guardar eliminaciones
 
             status_label.config(text="✓ Análisis y optimización completados", fg="#4CAF50")
 
@@ -161,6 +163,26 @@ def mostrar_codigo_intermedio(status_label):
 
         pcode_txt.tag_config("eliminado", foreground="red", font=("Courier", 10, "italic"))
         pcode_txt.config(state=tk.DISABLED)
+
+        pcode_original = ultimo_codigo_intermedio.get("pcode_original")
+        pcode_final = ultimo_codigo_intermedio["pcode"]
+        removed = ultimo_codigo_intermedio.get("removed", [])  # Obtener eliminaciones
+
+        # Mostrar código original con eliminaciones marcadas
+        for line in pcode_original:
+            if line in removed:
+                pcode_txt.insert(tk.END, f"- {line}\n", "eliminado")  # Mostrar en rojo/itálica
+            else:
+                pcode_txt.insert(tk.END, f"{line}\n")
+
+        # Mostrar código optimizado final
+        pcode_txt.insert(tk.END, "\n\n--- CÓDIGO OPTIMIZADO ---\n", "optimizado")
+        for line in pcode_final:
+            pcode_txt.insert(tk.END, f"{line}\n")
+
+        # Configurar estilos
+        pcode_txt.tag_config("eliminado", foreground="red", font=("Courier", 10, "italic"))
+        pcode_txt.tag_config("optimizado", foreground="green", font=("Courier", 10, "bold"))
 
         # Triples
         triples_frame = ttk.Frame(notebook)
