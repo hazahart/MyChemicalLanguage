@@ -214,7 +214,11 @@ class Parser:
         self.eat(TipoToken.OPERADOR, "->")
         tgt = self.look.valor; self.eat(TipoToken.IDENTIFICADOR)
         simbolo = self.tabla_simbolos.buscar(tgt)
-        if simbolo is None or simbolo.tipo != "sustancia":
+        if simbolo is None:
+            # Implicitly declare the target substance
+            simbolo = Simbolo(tgt, "sustancia", cantidad="0", unidad=None, metadatos=[])
+            self.tabla_simbolos.insertar(tgt, simbolo)
+        elif simbolo.tipo != "sustancia":
             self.error(f"Destino '{tgt}' no es una sustancia declarada")
         expr_type, expr_unit = self._infer_type(expr)
         if expr_type != "sustancia":

@@ -140,6 +140,22 @@ class CodeGenerator:
             self.pcode.append(f"MIX {result} {tgt}")
             self.triples.append((len(self.triples), "MIX", result, tgt))
             self.quads.append((len(self.quads), "MIX", result, tgt, None))
+            # Add metadata handling for binary operations
+            if isinstance(expr, tuple) and expr[0] == "BIN_OP" and expr[1] == "+":
+                left, right = expr[2], expr[3]
+                if left[0] == "VAR" and right[0] == "VAR":
+                    left_var, right_var = left[1], right[1]
+                    # Generate code for metadata (temp and presion)
+                    for prop in ["temp", "presion"]:
+                        temp = self.new_temp()
+                        self.polish.append(f"{temp} = AVG({left_var}.{prop}, {right_var}.{prop})")
+                        self.pcode.append(f"AVG_PROP {left_var} {right_var} {prop} {temp}")
+                        self.triples.append((len(self.triples), "AVG_PROP", f"{left_var}.{prop}", f"{right_var}.{prop}"))
+                        self.quads.append((len(self.quads), "AVG_PROP", f"{left_var}.{prop}", f"{right_var}.{prop}", temp))
+                        self.polish.append(f"SET {tgt}.{prop} = {temp}")
+                        self.pcode.append(f"SET_PROP {tgt} {prop} {temp}")
+                        self.triples.append((len(self.triples), "SET_PROP", tgt, prop, temp))
+                        self.quads.append((len(self.quads), "SET_PROP", tgt, prop, temp))
         elif node_type == "BALANCEAR":
             expr = node[1]
             result = self.generate_expr(expr)

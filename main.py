@@ -98,7 +98,16 @@ def actualizar_tabla_simbolos(treeview, tabla_simbolos):
     for i, tabla in enumerate(tabla_simbolos.tablas):
         treeview.insert("", "end", values=(f"Ámbito {i + 1}", "", ""), tags=("header",))
         for nombre, simbolo in tabla.items():
-            info_str = ", ".join([f"{k}={v}" for k, v in simbolo.info.items()]) if simbolo.info else ""
+            info_str = []
+            if simbolo.tipo == "sustancia":
+                if "cantidad" in simbolo.info:
+                    info_str.append(f"cantidad={simbolo.info['cantidad']} {simbolo.info.get('unidad', '')}")
+                if "metadatos" in simbolo.info and simbolo.info["metadatos"]:
+                    meta_str = ", ".join(f"{v} {u}" for v, u in simbolo.info["metadatos"])
+                    info_str.append(f"metadatos=[{meta_str}]")
+            else:
+                info_str = [f"{k}={v}" for k, v in simbolo.info.items()]
+            info_str = ", ".join(info_str) if info_str else ""
             treeview.insert("", "end", values=(nombre, simbolo.tipo, info_str))
 
 def ast_to_bnf(ast, nivel=0):

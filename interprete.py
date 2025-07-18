@@ -102,20 +102,66 @@ class Interprete:
 
         elif tipo == "MEZCLAR":
             expr, tgt = nodo[1], nodo[2]
-            valor = self._evaluar_expr(expr)
-            if valor is None:
-                return
-            if tgt not in self.variables or "cantidad" not in self.variables[tgt]:
-                self.errores.append(f"Destino '{tgt}' no es una sustancia válida")
-                return
-            self.variables[tgt]["cantidad"] += valor
+            # Handle substance combination directly
+            if isinstance(expr, tuple) and expr[0] == "BIN_OP" and expr[1] == "+":
+                left, right = expr[2], expr[3]
+                if left[0] == "VAR" and right[0] == "VAR":
+                    left_var, right_var = left[1], right[1]
+                    if left_var not in self.variables or right_var not in self.variables:
+                        self.errores.append(f"Variable no definida: {left_var} o {right_var}")
+                        return
+                    if tgt not in self.variables:
+                        self.variables[tgt] = {"cantidad": Decimal('0'), "unidad": None, "metadatos": []}
+                        self.tabla_simbolos.insertar(tgt, Simbolo(tgt, "sustancia", cantidad="0", unidad=None, metadatos=[]))
+                    left_qty = self.variables[left_var]["cantidad"]
+                    right_qty = self.variables[right_var]["cantidad"]
+                    self.variables[tgt]["cantidad"] = left_qty + right_qty
+                    if self.variables[left_var]["unidad"] and self.variables[right_var]["unidad"]:
+                        if self.variables[left_var]["unidad"] != self.variables[right_var]["unidad"]:
+                            self.errores.append(f"Incompatibilidad de unidades: {left_var} usa {self.variables[left_var]['unidad']}, {right_var} usa {self.variables[right_var]['unidad']}")
+                            return
+                        self.variables[tgt]["unidad"] = self.variables[left_var]["unidad"]
+                    elif self.variables[left_var]["unidad"]:
+                        self.variables[tgt]["unidad"] = self.variables[left_var]["unidad"]
+                    left_meta = dict((u, v) for v, u in self.variables[left_var].get("metadatos", []))
+                    right_meta = dict((u, v) for v, u in self.variables[right_var].get("metadatos", []))
+                    new_meta = []
+                    if "gradC" in left_meta and "gradC" in right_meta:
+                        left_temp = Decimal(left_meta["gradC"])
+                        right_temp = Decimal(right_meta["gradC"])
+                        avg_temp = (left_temp * left_qty + right_temp * right_qty) / (left_qty + right_qty)
+                        new_meta.append((str(avg_temp), "gradC"))
+                    if "atm" in left_meta and "atm" in right_meta:
+                        left_pres = Decimal(left_meta["atm"])
+                        right_pres = Decimal(right_meta["atm"])
+                        avg_pres = (left_pres * left_qty + right_pres * right_qty) / (left_qty + right_qty)
+                        new_meta.append((str(avg_pres), "atm"))
+                    self.variables[tgt]["metadatos"] = new_meta
+                    self.tabla_simbolos.buscar(tgt).info["metadatos"] = new_meta
+            else:
+                valor = self._evaluar_expr(expr)
+                if valor is None:
+                    return
+                if tgt not in self.variables:
+                    self.variables[tgt] = {"cantidad": Decimal('0'), "unidad": None, "metadatos": []}
+                    self.tabla_simbolos.insertar(tgt, Simbolo(tgt, "sustancia", cantidad="0", unidad=None, metadatos=[]))
+                if "cantidad" not in self.variables[tgt]:
+                    self.errores.append(f"Destino '{tgt}' no es una sustancia válida")
+                    return
+                self.variables[tgt]["cantidad"] += valor
+                expr_type, expr_unit = self._infer_type(expr)
+                if expr_unit and self.variables[tgt]["unidad"] is None:
+                    self.variables[tgt]["unidad"] = expr_unit
+                elif expr_unit and self.variables[tgt]["unidad"] != expr_unit:
+                    self.errores.append(f"Incompatibilidad de unidades: destino '{tgt}' usa {self.variables[tgt]['unidad']}, expresión usa {expr_unit}")
+                    return
 
         elif tipo == "BALANCEAR":
             expr = nodo[1]
             valor = self._evaluar_expr(expr)
             if valor is None:
                 return
-            # Simular balanceo (por ahora, solo asignar el valor)
+            # Simular balanceo
             self.variables[f"balanced_{expr[1]}"] = {"cantidad": valor}
 
         elif tipo == "MOSTRAR":
@@ -207,10 +253,13 @@ class Interprete:
             right_val = self._evaluar_expr(right)
             if left_val is None or right_val is None:
                 return None
+            if op == "+" and isinstance(left_val, Decimal) and isinstance(right_val, Decimal):
+                return left_val + right_val
+            elif op == "+" and left[0] == "VAR" and right[0] == "VAR":
+                # Defer substance combination to MEZCLAR
+                return None  # Will be handled in MEZCLAR context
             try:
-                if op == "+":
-                    return left_val + right_val
-                elif op == "-":
+                if op == "-":
                     return left_val - right_val
                 elif op == "*":
                     return left_val * right_val
@@ -290,11 +339,15 @@ class Interprete:
                 op, left, right = node[1], node[2], node[3]
                 left_type, left_unit = self._infer_type(left)
                 right_type, right_unit = self._infer_type(right)
-                if op in ["+", "-"] and left_type == right_type == "numero":
+                if op == "+" and left_type == right_type == "sustancia":
+                    if left_unit != right_unit:
+                        self.errores.append(f"Incompatibilidad de unidades: {left_unit} y {right_unit}")
+                    return "sustancia", left_unit  # Allow addition of substances
+                elif op == "+" and left_type == right_type == "numero":
                     return "numero", None
-                if op == "*" and left_type == "numero" and right_type == "numero":
-                    return "numero", None
-                if op == "/" and left_type == "numero" and right_type == "numero":
+                elif op == "+" and left_type == right_type == "cadena":
+                    return "cadena", None
+                elif op in ["*", "/"] and left_type == "numero" and right_type == "numero":
                     return "numero", None
                 self.errores.append(f"Operación '{op}' no válida entre {left_type} y {right_type}")
                 return "desconocido", None

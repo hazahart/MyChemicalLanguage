@@ -2,7 +2,7 @@ class Simbolo:
     def __init__(self, nombre, tipo, **kwargs):
         self.nombre = nombre
         self.tipo = tipo
-        self.info = kwargs
+        self.info = kwargs.copy()
 
 class TablaSimbolos:
     def __init__(self):
