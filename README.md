@@ -43,7 +43,7 @@ sustancia H2 cantidad = 2.0 mol @[25 gradC, 1 atm];
 sustancia O2 cantidad = 1.0 mol @[32 gradC, 1 atm];
 
 # Mezcla de H2 y O2 para crear agua
-mezclar (H2 + O2) -> agua;
+mezclar (H2 fusionar O2) -> agua;
 
 # Mostrar propiedades de la sustancia resultante
 mostrar("Temperatura de agua: ", agua.temp, " °C");
@@ -53,7 +53,7 @@ mostrar("Presión de agua: ", agua.presion, " atm");
 sustancia N2 cantidad = 1.5 mol @[30 gradC, 1 atm];
 
 # Mezcla adicional con N2
-mezclar (agua + N2) -> mezcla;
+mezclar (agua fusionar N2) -> mezcla;
 
 # Mostrar resultado de la nueva mezcla
 mostrar("Temperatura de mezcla: ", mezcla.temp, " °C");
