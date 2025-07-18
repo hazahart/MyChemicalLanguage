@@ -102,7 +102,8 @@ class Interprete:
             self.tabla_simbolos.salir_bloque()
 
         elif tipo == "MEZCLAR":
-            expr, tgt = nodo[1], nodo[2]
+            expr, tgt_node = nodo[1], nodo[2]
+            tgt = tgt_node[1]  # Extract target name from SUSTANCIA node
             print(f"DEBUG: Procesando MEZCLAR con expr {expr}, target {tgt}")
             # Handle substance combination directly
             if isinstance(expr, tuple) and expr[0] == "BIN_OP" and expr[1] == "+":

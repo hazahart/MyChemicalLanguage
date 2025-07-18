@@ -215,7 +215,7 @@ class Parser:
         tgt = self.look.valor; self.eat(TipoToken.IDENTIFICADOR)
         simbolo = self.tabla_simbolos.buscar(tgt)
         if simbolo is None:
-            # Implicitly declare the target substance
+            # Implicitly declare the target substance and include it in the AST
             simbolo = Simbolo(tgt, "sustancia", cantidad="0", unidad=None, metadatos=[])
             self.tabla_simbolos.insertar(tgt, simbolo)
         elif simbolo.tipo != "sustancia":
@@ -226,7 +226,7 @@ class Parser:
         if simbolo.info.get("unidad") and expr_unit and simbolo.info["unidad"] != expr_unit:
             self.error(f"Incompatibilidad de unidades: destino tiene '{simbolo.info['unidad']}', expresión tiene '{expr_unit}'")
         self.eat(TipoToken.PUNTUACION, ";")
-        return ("MEZCLAR", expr, tgt)
+        return ("MEZCLAR", expr, ("SUSTANCIA", tgt, "0", None, []))  # Include implicit declaration in AST
 
     def cmd_balancear(self):
         self.eat(TipoToken.PALABRA_RESERVADA, "balancear")

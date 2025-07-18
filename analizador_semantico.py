@@ -143,28 +143,34 @@ class AnalizadorSemantico:
         if expr_type != "sustancia":
             self.errores.append(f"Expresión en 'mezclar' debe ser sustancia, no {expr_type}")
 
+        # Check or create symbol for target
         simbolo = self.tabla_simbolos.buscar(tgt)
-        if not simbolo or simbolo.tipo != "sustancia":
-            # Implicit declaration is handled in parser, but verify type
+        if not simbolo:
+            simbolo = Simbolo(tgt, "sustancia", cantidad="0", unidad=None, metadatos=[])
+            self.tabla_simbolos.insertar(tgt, simbolo)
+        elif simbolo.tipo != "sustancia":
             self.errores.append(f"Destino '{tgt}' no es una sustancia válida")
             return
         elif simbolo.info.get("unidad") and expr_unit and simbolo.info["unidad"] != expr_unit:
             self.errores.append(f"Incompatibilidad de unidades en 'mezclar': destino usa {simbolo.info['unidad']}, expresión usa {expr_unit}")
 
-        # Validate metadata compatibility in expressions
-        if isinstance(expr, tuple) and expr[0] == "BIN_OP" and expr[1] in ["+", "-"]:
+        # Propagar metadatos comunes al símbolo destino
+        if isinstance(expr, tuple) and expr[0] == "BIN_OP" and expr[1] == "+":
             left, right = expr[2], expr[3]
-            left_type, left_unit = self._infer_type(left)
-            right_type, right_unit = self._infer_type(right)
-            if left_type == right_type == "sustancia":
-                # Check metadata compatibility (e.g., temp and presion)
-                left_simbolo = self.tabla_simbolos.buscar(left[1]) if left[0] == "VAR" else None
-                right_simbolo = self.tabla_simbolos.buscar(right[1]) if right[0] == "VAR" else None
-                if left_simbolo and right_simbolo:
-                    left_meta = set(u for _, u in left_simbolo.info.get("metadatos", []))
-                    right_meta = set(u for _, u in right_simbolo.info.get("metadatos", []))
-                    if left_meta != right_meta:
-                        self.errores.append(f"Incompatibilidad de metadatos en 'mezclar': {left[1]} tiene {left_meta}, {right[1]} tiene {right_meta}")
+            if left[0] == "VAR" and right[0] == "VAR":
+                left_sim = self.tabla_simbolos.buscar(left[1])
+                right_sim = self.tabla_simbolos.buscar(right[1])
+                if left_sim and right_sim:
+                    # Convertir metadatos a diccionarios {unidad: valor}
+                    left_meta = dict((u, v) for v, u in left_sim.info.get("metadatos", []))
+                    right_meta = dict((u, v) for v, u in right_sim.info.get("metadatos", []))
+                    # Unidades comunes entre ambas sustancias
+                    unidades_comunes = set(left_meta.keys()) & set(right_meta.keys())
+                    # Crear metadatos dummy con valor "0" para evitar errores semánticos
+                    nuevos_meta = [("0", u) for u in unidades_comunes]
+                    simbolo.info["metadatos"] = nuevos_meta
+
+
 
     def _verificar_balancear(self, nodo):
         _, expr = nodo

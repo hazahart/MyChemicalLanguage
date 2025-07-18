@@ -66,7 +66,7 @@ def analizar_codigo(editor, tabla, status_label, symbols_tree, resultados_txt):
             ultimo_codigo_intermedio["removed"] = removed_instructions
             status_label.config(text="✓ Análisis y optimización completados", fg="#4CAF50")
 
-        # Actualizar tabla de símbolos
+        # Actualizar tabla de símbolos después de parsing y semantic analysis
         actualizar_tabla_simbolos(symbols_tree, tabla_simbolos)
 
         # Ejecutar el código
@@ -77,6 +77,24 @@ def analizar_codigo(editor, tabla, status_label, symbols_tree, resultados_txt):
             resultados_txt.insert(tk.END, "\n".join(errores_ejecucion), "error")
         else:
             resultados_txt.insert(tk.END, "\n".join(resultados) if resultados else "Ejecución completada sin salida")
+
+        # Actualizar tabla de símbolos después de interpretación para reflejar cambios
+        actualizar_tabla_simbolos(symbols_tree, tabla_simbolos)
+
+    except SyntaxError as ex:
+        msg = str(ex)
+        status_label.config(text=msg, fg="#FF5252")
+        m = re.search(r'\[pos (\d+)\]', msg)
+        if m:
+            idx = int(m.group(1))
+            if 0 <= idx < len(tokens):
+                t = tokens[idx]
+                s = f"1.0 + {t.inicio} chars"
+                e = f"1.0 + {t.fin} chars"
+                editor.tag_config("ERROR", background="yellow")
+                editor.tag_add("ERROR", s, e)
+    except Exception as ex:
+        status_label.config(text=f"Error: {ex}", fg="#FF5252")
 
     except SyntaxError as ex:
         msg = str(ex)
@@ -184,8 +202,10 @@ def mostrar_codigo_intermedio(status_label):
         notebook.add(triples_frame, text="Triplos")
         triples_txt = scrolledtext.ScrolledText(triples_frame, font=("Courier", 10))
         triples_txt.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        triples_txt.insert(tk.END, "\n".join(f"{i}: ({op}, {arg1 or '-'}, {arg2 or '-'})"
-                                             for i, op, arg1, arg2 in ultimo_codigo_intermedio["triples"]))
+        triples_txt.insert(tk.END, "\n".join(
+            f"{t[0]}: ({t[1]}, {t[2] if len(t) > 2 else '-'}, {t[3] if len(t) > 3 else '-'})"
+            for t in ultimo_codigo_intermedio["triples"]
+        ))
         triples_txt.config(state=tk.DISABLED)
 
         # Quads
@@ -193,9 +213,12 @@ def mostrar_codigo_intermedio(status_label):
         notebook.add(quads_frame, text="Cuádruplos")
         quads_txt = scrolledtext.ScrolledText(quads_frame, font=("Courier", 10))
         quads_txt.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        quads_txt.insert(tk.END, "\n".join(f"{i}: ({op}, {arg1 or '-'}, {arg2 or '-'}, {res or '-'})"
-                                           for i, op, arg1, arg2, res in ultimo_codigo_intermedio["quads"]))
+        quads_txt.insert(tk.END, "\n".join(
+            f"{q[0]}: ({q[1]}, {q[2] if len(q) > 2 else '-'}, {q[3] if len(q) > 3 else '-'}, {q[4] if len(q) > 4 else '-'})"
+            for q in ultimo_codigo_intermedio["quads"]
+        ))
         quads_txt.config(state=tk.DISABLED)
+
     else:
         status_label.config(text="⚠ Código intermedio no generado aún", fg="orange")
 
