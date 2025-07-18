@@ -17,6 +17,67 @@ ultimo_ast = None
 ultimo_tabla_simbolos = None
 ultimo_codigo_intermedio = None
 
+def solo_analizar_codigo(editor, tabla, status_label, symbols_tree):
+    global ultimo_ast, ultimo_tabla_simbolos, ultimo_codigo_intermedio
+    txt = editor.get("1.0", tk.END)
+    tokens = AFD_Lexico(txt).run()
+
+    tabla.delete(*tabla.get_children())
+    for tag in editor.tag_names():
+        editor.tag_remove(tag, "1.0", tk.END)
+    editor.tag_delete("ERROR")
+
+    for tok in tokens:
+        tabla.insert("", tk.END, values=tok.to_tuple())
+        s = f"1.0 + {tok.inicio} chars"
+        e = f"1.0 + {tok.fin} chars"
+        editor.tag_add(tok.tipo.name, s, e)
+
+    status_label.config(text="", fg="green")
+    try:
+        tabla_simbolos = TablaSimbolos()
+        parser = Parser(tokens, tabla_simbolos)
+        ast = parser.program()
+        ultimo_ast = ast
+        ultimo_tabla_simbolos = tabla_simbolos
+
+        semantico = AnalizadorSemantico(ast, tabla_simbolos)
+        errores_semanticos = semantico.analizar()
+
+        if parser.errors or errores_semanticos:
+            errores = parser.errors + errores_semanticos
+            status_label.config(text="\n".join(errores), fg="#FF5252")
+        else:
+            opt = OptimizadorGlobal(ast)
+            ast_opt = opt.optimizar()
+
+            code_gen = CodeGenerator(tabla_simbolos)
+            ultimo_codigo_intermedio = code_gen.generate(ast_opt)
+            ultimo_codigo_intermedio["pcode_original"] = code_gen.pcode.copy()
+
+            p_opt = PeepholeOptimizer(ultimo_codigo_intermedio["pcode_original"])
+            optimized_pcode, removed_instructions = p_opt.optimizar()
+            ultimo_codigo_intermedio["pcode"] = optimized_pcode
+            ultimo_codigo_intermedio["removed"] = removed_instructions
+
+            status_label.config(text="✓ Análisis y optimización completados", fg="#4CAF50")
+            actualizar_tabla_simbolos(symbols_tree, tabla_simbolos)
+
+    except SyntaxError as ex:
+        msg = str(ex)
+        status_label.config(text=msg, fg="#FF5252")
+        m = re.search(r'\[pos (\d+)\]', msg)
+        if m:
+            idx = int(m.group(1))
+            if 0 <= idx < len(tokens):
+                t = tokens[idx]
+                s = f"1.0 + {t.inicio} chars"
+                e = f"1.0 + {t.fin} chars"
+                editor.tag_config("ERROR", background="yellow")
+                editor.tag_add("ERROR", s, e)
+    except Exception as ex:
+        status_label.config(text=f"Error: {ex}", fg="#FF5252")
+
 def analizar_codigo(editor, tabla, status_label, symbols_tree, resultados_txt):
     global ultimo_ast, ultimo_tabla_simbolos, ultimo_codigo_intermedio
     txt = editor.get("1.0", tk.END)
@@ -233,7 +294,7 @@ def main():
     ui.btn_ejecutar = ModernButton(ui.btn_ejecutar, text="▶ Ejecutar")
     ui.btn_ejecutar.pack(side=tk.LEFT, padx=5)
 
-    ui.editor.bind("<KeyRelease>", lambda e: analizar_codigo(ui.editor, ui.tabla, ui.status_label, ui.symbols_tree, resultados_txt))
+    ui.editor.bind("<KeyRelease>", lambda e: solo_analizar_codigo(ui.editor, ui.tabla, ui.status_label, ui.symbols_tree))    
     ui.btn_ast.config(command=lambda: mostrar_ast_manual(ui.status_label))
     ui.btn_code.config(command=lambda: mostrar_codigo_intermedio(ui.status_label))
     ui.btn_ejecutar.config(command=lambda: analizar_codigo(ui.editor, ui.tabla, ui.status_label, ui.symbols_tree, resultados_txt))
