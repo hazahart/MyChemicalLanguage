@@ -82,7 +82,7 @@ class Parser:
                 except ValueError:
                     self.error(f"Metadato '{v}' no es un número válido")
                 u = self.look.valor; self.eat(TipoToken.UNIDAD)
-                if u not in ["gradC", "atm"]:
+                if u not in CODIGOS_TOKEN_UNIDADES:
                     self.error(f"Unidad '{u}' no válida para metadatos")
                 meta.append((v, u))
                 if self.look.valor != ",": break
@@ -215,8 +215,20 @@ class Parser:
         tgt = self.look.valor; self.eat(TipoToken.IDENTIFICADOR)
         simbolo = self.tabla_simbolos.buscar(tgt)
         if simbolo is None:
-            # Implicitly declare the target substance and include it in the AST
-            simbolo = Simbolo(tgt, "sustancia", cantidad="0", unidad=None, metadatos=[])
+            # Detectar unidades de metadatos y unidad de cantidad desde los operandos
+            meta_unidades = set()
+            unidad = None
+            if isinstance(expr, tuple) and expr[0] == "BIN_OP":
+                left, right = expr[2], expr[3]
+                for var in (left, right):
+                    if var[0] == "VAR":
+                        sim = self.tabla_simbolos.buscar(var[1])
+                        if sim:
+                            meta_unidades.update(u for _, u in sim.info.get("metadatos", []))
+                            if not unidad and sim.info.get("unidad"):
+                                unidad = sim.info["unidad"]
+            meta_dummy = [("0", u) for u in meta_unidades]
+            simbolo = Simbolo(tgt, "sustancia", cantidad="0", unidad=unidad, metadatos=meta_dummy)
             self.tabla_simbolos.insertar(tgt, simbolo)
         elif simbolo.tipo != "sustancia":
             self.error(f"Destino '{tgt}' no es una sustancia declarada")
