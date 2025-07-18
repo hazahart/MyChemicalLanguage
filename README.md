@@ -38,24 +38,27 @@
 ## Ejemplo de Código MCL
 
 ```mcl
-# Simula la formación de agua y calcula la masa de reactivos
-sustancia H2 cantidad=2.016 mol @[25 gradC, 1 atm];
-sustancia O2 cantidad=32.00 mol @[25 gradC, 1 atm];
-sustancia H2O cantidad=18.015 gramo;
-sustancia reactivoH2 cantidad = 0;
-sustancia reactivoO2 cantidad = 0;
+# Declaración de las sustancias iniciales
+sustancia H2 cantidad = 2.0 mol @[25 gradC, 1 atm];
+sustancia O2 cantidad = 1.0 mol @[32 gradC, 1 atm];
 
-sustancia total cantidad = 0;
+# Mezcla de H2 y O2 para crear agua
+mezclar (H2 + O2) -> agua;
 
-# Uso de operadores verbales y constantes
-numero moles_agua = (PLANCK * AVOGADRO) catalizar PI;
+# Mostrar propiedades de la sustancia resultante
+mostrar("Temperatura de agua: ", agua.temp, " °C");
+mostrar("Presión de agua: ", agua.presion, " atm");
 
-reaccionar formarAgua[2H2, O2 -> 2H2O] {
-    mezclar(H2 fusionar H2) -> reactivoH2;  # Equivalente a H2 + H2
-    mezclar(O2) -> reactivoO2;
-    mezclar(reactivoH2 diluir PI) -> total; # Equivalente a reactivoH2 / PI
-    mostrar("Moles de agua calculados: ", moles_agua);
-}
+# Declaración adicional de otra sustancia para probar compatibilidad
+sustancia N2 cantidad = 1.5 mol @[30 gradC, 1 atm];
 
-mostrar("¡Hola Mundo Químico! Iniciando reacción...");
-formarAgua[2H2, O2];
+# Mezcla adicional con N2
+mezclar (agua + N2) -> mezcla;
+
+# Mostrar resultado de la nueva mezcla
+mostrar("Temperatura de mezcla: ", mezcla.temp, " °C");
+mostrar("Presión de mezcla: ", mezcla.presion, " atm");
+
+# Añadir una operación simple para verificar cantidad
+mostrar("Cantidad total de mezcla: ", mezcla.cant, " mol");
+```
