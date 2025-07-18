@@ -33,6 +33,7 @@ class Interprete:
             try:
                 qty = Decimal(qty)
                 self.variables[name] = {"cantidad": qty, "unidad": unit, "metadatos": meta}
+                print(f"DEBUG: Declarada sustancia '{name}' con cantidad {qty}, unidad {unit}, meta {meta}")
             except InvalidOperation:
                 self.errores.append(f"Cantidad inválida para sustancia '{name}': {qty}")
 
@@ -102,6 +103,7 @@ class Interprete:
 
         elif tipo == "MEZCLAR":
             expr, tgt = nodo[1], nodo[2]
+            print(f"DEBUG: Procesando MEZCLAR con expr {expr}, target {tgt}")
             # Handle substance combination directly
             if isinstance(expr, tuple) and expr[0] == "BIN_OP" and expr[1] == "+":
                 left, right = expr[2], expr[3]
@@ -110,12 +112,16 @@ class Interprete:
                     if left_var not in self.variables or right_var not in self.variables:
                         self.errores.append(f"Variable no definida: {left_var} o {right_var}")
                         return
+                    # Initialize target if not declared
                     if tgt not in self.variables:
                         self.variables[tgt] = {"cantidad": Decimal('0'), "unidad": None, "metadatos": []}
                         self.tabla_simbolos.insertar(tgt, Simbolo(tgt, "sustancia", cantidad="0", unidad=None, metadatos=[]))
+                    # Combine quantities
                     left_qty = self.variables[left_var]["cantidad"]
                     right_qty = self.variables[right_var]["cantidad"]
-                    self.variables[tgt]["cantidad"] = left_qty + right_qty
+                    total_qty = left_qty + right_qty
+                    self.variables[tgt]["cantidad"] = total_qty
+                    # Inherit unit from first substance if consistent
                     if self.variables[left_var]["unidad"] and self.variables[right_var]["unidad"]:
                         if self.variables[left_var]["unidad"] != self.variables[right_var]["unidad"]:
                             self.errores.append(f"Incompatibilidad de unidades: {left_var} usa {self.variables[left_var]['unidad']}, {right_var} usa {self.variables[right_var]['unidad']}")
@@ -123,21 +129,23 @@ class Interprete:
                         self.variables[tgt]["unidad"] = self.variables[left_var]["unidad"]
                     elif self.variables[left_var]["unidad"]:
                         self.variables[tgt]["unidad"] = self.variables[left_var]["unidad"]
+                    # Combine metadata with default values for missing properties
                     left_meta = dict((u, v) for v, u in self.variables[left_var].get("metadatos", []))
                     right_meta = dict((u, v) for v, u in self.variables[right_var].get("metadatos", []))
                     new_meta = []
-                    if "gradC" in left_meta and "gradC" in right_meta:
-                        left_temp = Decimal(left_meta["gradC"])
-                        right_temp = Decimal(right_meta["gradC"])
-                        avg_temp = (left_temp * left_qty + right_temp * right_qty) / (left_qty + right_qty)
-                        new_meta.append((str(avg_temp), "gradC"))
-                    if "atm" in left_meta and "atm" in right_meta:
-                        left_pres = Decimal(left_meta["atm"])
-                        right_pres = Decimal(right_meta["atm"])
-                        avg_pres = (left_pres * left_qty + right_pres * right_qty) / (left_qty + right_qty)
-                        new_meta.append((str(avg_pres), "atm"))
+                    # Handle temperature (gradC)
+                    left_temp = Decimal(left_meta.get("gradC", "0"))
+                    right_temp = Decimal(right_meta.get("gradC", "0"))
+                    avg_temp = (left_temp * left_qty + right_temp * right_qty) / total_qty
+                    new_meta.append((str(avg_temp), "gradC"))
+                    # Handle pressure (atm)
+                    left_pres = Decimal(left_meta.get("atm", "0"))
+                    right_pres = Decimal(right_meta.get("atm", "0"))
+                    avg_pres = (left_pres * left_qty + right_pres * right_qty) / total_qty
+                    new_meta.append((str(avg_pres), "atm"))
                     self.variables[tgt]["metadatos"] = new_meta
                     self.tabla_simbolos.buscar(tgt).info["metadatos"] = new_meta
+                    print(f"DEBUG: Mezcla completada, {tgt} tiene cantidad {self.variables[tgt]['cantidad']}, meta {new_meta}")
             else:
                 valor = self._evaluar_expr(expr)
                 if valor is None:
@@ -155,7 +163,6 @@ class Interprete:
                 elif expr_unit and self.variables[tgt]["unidad"] != expr_unit:
                     self.errores.append(f"Incompatibilidad de unidades: destino '{tgt}' usa {self.variables[tgt]['unidad']}, expresión usa {expr_unit}")
                     return
-
         elif tipo == "BALANCEAR":
             expr = nodo[1]
             valor = self._evaluar_expr(expr)
@@ -166,6 +173,7 @@ class Interprete:
 
         elif tipo == "MOSTRAR":
             args = nodo[1]
+            print(f"DEBUG: Procesando MOSTRAR con args {args}")
             output = []
             for arg in args:
                 if arg[0] == "TEXT":
@@ -174,6 +182,8 @@ class Interprete:
                     valor = self._evaluar_expr(arg)
                     if valor is not None:
                         output.append(str(valor))
+                    else:
+                        print(f"DEBUG: Valor nulo para {arg}")
             self.resultados.append(" ".join(output))
 
         elif tipo == "SI":
@@ -213,6 +223,7 @@ class Interprete:
         if expr[0] == "VAR":
             name = expr[1]
             if name in self.variables:
+                print(f"DEBUG: Evaluando '{name}' desde variables: {self.variables[name]}")
                 return self.variables[name].get("valor", self.variables[name].get("cantidad"))
             simbolo = self.tabla_simbolos.buscar(name)
             if simbolo and "valor" in simbolo.info:
@@ -224,6 +235,7 @@ class Interprete:
             if var not in self.variables:
                 self.errores.append(f"Variable '{var}' no definida")
                 return None
+            print(f"DEBUG: Accediendo a '{prop}' de '{var}', metadatos: {self.variables[var].get('metadatos', [])}")
             if prop == "cant":
                 if "cantidad" in self.variables[var]:
                     return self.variables[var]["cantidad"]
@@ -231,11 +243,13 @@ class Interprete:
                 return None
             elif prop in ["temp", "presion"]:
                 expected_unit = "gradC" if prop == "temp" else "atm"
-                for v, u in self.variables[var].get("metadatos", []):
-                    if u == expected_unit:
-                        return Decimal(v)
-                self.errores.append(f"Propiedad '{prop}' no definida para '{var}'")
-                return None
+                meta = self.variables[var].get("metadatos", [])
+                for value, unit in meta:
+                    if unit == expected_unit:
+                        print(f"DEBUG: Encontrado '{prop}' = {value} {unit} para '{var}'")
+                        return Decimal(value)
+                print(f"DEBUG: Propiedad '{prop}' no encontrada en '{var}', usando 0 {expected_unit}")
+                return Decimal('0')
             else:
                 self.errores.append(f"Propiedad desconocida '{prop}' para '{var}'")
                 return None
@@ -256,8 +270,8 @@ class Interprete:
             if op == "+" and isinstance(left_val, Decimal) and isinstance(right_val, Decimal):
                 return left_val + right_val
             elif op == "+" and left[0] == "VAR" and right[0] == "VAR":
-                # Defer substance combination to MEZCLAR
-                return None  # Will be handled in MEZCLAR context
+                print(f"DEBUG: Deferring '{left[1]} + {right[1]}' to MEZCLAR")
+                return None
             try:
                 if op == "-":
                     return left_val - right_val
@@ -272,7 +286,7 @@ class Interprete:
                 self.errores.append(f"Operación inválida: {left_val} {op} {right_val}")
                 return None
         return None
-
+    
     def _evaluar_cond(self, cond):
         if cond[0] == "COND":
             op, left, right = cond[1], cond[2], cond[3]
@@ -323,11 +337,7 @@ class Interprete:
                     return "numero", simbolo.info.get("unidad")
                 elif prop in ["temp", "presion"]:
                     expected_unit = "gradC" if prop == "temp" else "atm"
-                    for v, u in simbolo.info.get("metadatos", []):
-                        if u == expected_unit:
-                            return "numero", u
-                    self.errores.append(f"Propiedad '{prop}' no definida para la sustancia '{var}'")
-                    return "desconocido", None
+                    return "numero", expected_unit
                 else:
                     self.errores.append(f"Propiedad desconocida '{prop}' para la sustancia '{var}'")
                     return "desconocido", None
@@ -342,7 +352,7 @@ class Interprete:
                 if op == "+" and left_type == right_type == "sustancia":
                     if left_unit != right_unit:
                         self.errores.append(f"Incompatibilidad de unidades: {left_unit} y {right_unit}")
-                    return "sustancia", left_unit  # Allow addition of substances
+                    return "sustancia", left_unit
                 elif op == "+" and left_type == right_type == "numero":
                     return "numero", None
                 elif op == "+" and left_type == right_type == "cadena":
@@ -352,3 +362,9 @@ class Interprete:
                 self.errores.append(f"Operación '{op}' no válida entre {left_type} y {right_type}")
                 return "desconocido", None
         return "desconocido", None
+    
+    def get_resultados(self):
+        return self.resultados
+
+    def get_errores(self):
+        return self.errores
