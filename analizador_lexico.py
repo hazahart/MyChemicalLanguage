@@ -72,6 +72,17 @@ class AFD_Lexico:
                     self.emitir(tp, lex, inicio, j)
                 self.i = j
                 continue
+            if c == '-' and self.i + 1 < self.n and self.texto[self.i + 1].isdigit():
+                self.i += 1  # Avanzar pasado el signo '-'
+                while self.i < self.n and self.texto[self.i].isdigit():
+                    self.i += 1
+                if self.i < self.n and self.texto[self.i] == '.':
+                    self.i += 1
+                    while self.i < self.n and self.texto[self.i].isdigit():
+                        self.i += 1
+                val = self.texto[inicio:self.i]
+                self.emitir(TipoToken.NUMERO, val, inicio, self.i)
+                continue
             if c.isdigit():
                 while self.i < self.n and self.texto[self.i].isdigit():
                     self.i += 1
